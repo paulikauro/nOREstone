@@ -1,0 +1,12 @@
+name: norestone
+version: '1.0-SNAPSHOT'
+main: com.sloimay.norestone.NOREStone
+api-version: '1.20'
+authors: [ Sloimay ]
+
+
+
+
+
+
+

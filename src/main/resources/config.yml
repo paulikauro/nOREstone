@@ -1,0 +1,7 @@
+default_max_sim_tps: 20
+
+default_max_sim_sel_size_x: 100
+default_max_sim_sel_size_y: 100
+default_max_sim_sel_size_z: 100
+
+default_max_sim_volume: 1000000
