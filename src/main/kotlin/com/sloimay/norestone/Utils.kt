@@ -1,6 +1,7 @@
 package com.sloimay.norestone
 
 import com.sk89q.worldedit.math.BlockVector3
+import com.sk89q.worldedit.regions.CuboidRegion
 import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.smath.vectors.DVec3
 import com.sloimay.smath.vectors.IVec3
@@ -9,6 +10,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.entity.Player
+import kotlin.math.ceil
 
 
 private class Ok<T>(val v: T) : Result<T, Nothing>() {
@@ -48,17 +50,47 @@ abstract class Result<out O, out E> {
 }
 
 
-/*class Result<O, E> private constructor(val o: O?, val e: E?) {
 
-    companion object {
 
-        fun <T> err(): Result<T, Any> {
+class BitArray(val size: Long) {
+    val words = IntArray(ceil(size.toDouble() / 32.0).toInt()) { 0 }
 
+    fun zeroOut() = words.fill(0)
+
+    fun isAllOne(): Boolean {
+        for (idx in 0 until words.size - 1) {
+            if (words[idx] != -1) {
+                return false
+            }
+        }
+        // Special case for the last word
+        for (idx in (words.lastIndex shl 5) until size) {
+            if (this[idx] == false) {
+                return false
+            }
         }
 
+        return true
     }
 
-}*/
+    operator fun set(idx: Long, value: Boolean) {
+        require(idx in 0 until size) { "Bit array out of bounds." }
+        val wordIdx = (idx ushr 5).toInt()
+        val idxInWord = (idx and 0x1F).toInt()
+        val valueInt = value.toInt()
+        val bit = (valueInt shl idxInWord)
+        words[wordIdx] = (words[wordIdx] and bit.inv()) or bit
+    }
+
+    operator fun get(idx: Long): Boolean {
+        require(idx in 0 until size) { "Bit array out of bounds." }
+        val wordIdx = (idx ushr 5).toInt()
+        val idxInWord = (idx and 0x1F).toInt()
+        return ((words[wordIdx] ushr idxInWord) and 1) == 1
+    }
+}
+
+
 
 
 
@@ -90,6 +122,10 @@ fun IntBoundary.Companion.newInclusive(a: IVec3, b: IVec3): IntBoundary {
     return IntBoundary.new(aReal, bReal + 1)
 }
 
+fun IntBoundary.volumeLong() = (b - a).eProdLong()
+
+fun CuboidRegion.toIntBounds() = IntBoundary.new(minimumPoint.toIVec3(), maximumPoint.toIVec3() + 1)
+
 fun mmComp(miniMsg: String): Component {
     return MiniMessage.miniMessage().deserialize(miniMsg)
 }
@@ -97,9 +133,8 @@ fun mmComp(miniMsg: String): Component {
 
 
 
-inline fun playerFeedbackRequirePerm(player: Player, permNode: String, ifNoPerm: () -> Unit = {}) {
+inline fun playerFeedbackRequirePerm(player: Player, permNode: String, ifNoPerm: (String) -> Unit = {}) {
     if (!player.hasPermission(permNode)) {
-        NORESTONE?.messenger?.err(player, mmComp("Lacking permission: '$permNode'."))
-        ifNoPerm()
+        ifNoPerm("Lacking permission: '$permNode'.")
     }
 }

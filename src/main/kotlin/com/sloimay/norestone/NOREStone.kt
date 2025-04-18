@@ -3,10 +3,11 @@ package com.sloimay.norestone
 import com.plotsquared.core.PlotAPI
 import com.plotsquared.core.plot.Plot
 import com.sloimay.norestone.commands.SimCmd
+import com.sloimay.norestone.listeners.NorestoneListener
+import com.sloimay.norestone.listeners.PlotSquaredListener
 import com.sloimay.norestone.permission.NsPermProvider
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelValidator
-import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.smath.vectors.IVec3
 import net.kyori.adventure.platform.bukkit.BukkitAudiences
 import net.luckperms.api.LuckPerms
@@ -19,6 +20,15 @@ import java.util.*
 import kotlin.collections.HashMap
 
 
+
+enum class SimAnomalies {
+    PLAYER_SEL_BOUNDS,
+    SIM_SEL_BOUNDS,
+}
+
+
+
+
 class NOREStone : JavaPlugin() {
 
     val sessions = HashMap<UUID, NsPlayerSession>()
@@ -26,6 +36,8 @@ class NOREStone : JavaPlugin() {
     val messenger = NsMessenger(this)
 
     val simSelValidator = SimSelValidator(this)
+
+    val playerInteract = PlayerInteractions(this)
 
 
     // lol pp
@@ -73,6 +85,7 @@ class NOREStone : JavaPlugin() {
 
         // # Register events
         server.pluginManager.registerEvents(NorestoneListener(this), this)
+        plotApi.registerListener(PlotSquaredListener(this))
 
         // # Db file
         dataFolder.mkdirs()
@@ -85,7 +98,9 @@ class NOREStone : JavaPlugin() {
     }
 
     override fun onDisable() {
-        // Plugin shutdown logic
+
+        // End all sessions
+        sessions.map { it.key }.forEach { endSession(it) }
 
 
         adventure.close()
@@ -125,6 +140,7 @@ class NOREStone : JavaPlugin() {
 
         val intTypeData = TypeData("Int", FileConfiguration::isInt, FileConfiguration::getInt)
         val longTypeData = TypeData("Long", FileConfiguration::isInt, FileConfiguration::getLong)
+        val boolTypeData = TypeData("Boolean", FileConfiguration::isBoolean, FileConfiguration::getBoolean)
 
 
         fun getOrDisable(path: String, typeData: TypeData): Any? {
@@ -160,12 +176,16 @@ class NOREStone : JavaPlugin() {
         val defaultSelMaxVol = (getOrDisable("default_max_sim_volume", longTypeData,)
             ?: run { isEnabled = false; return }) as Long
 
+        val extraSafeSimStateChecking = (getOrDisable("extra_safe_sim_state_checking", boolTypeData,)
+            ?: run { isEnabled = false; return }) as Boolean
+
         consts = NsConsts(
             defaultMaxTps,
             defaultSelMaxX,
             defaultSelMaxY,
             defaultSelMaxZ,
             defaultSelMaxVol,
+            extraSafeSimStateChecking,
         )
     }
 
@@ -175,91 +195,36 @@ class NOREStone : JavaPlugin() {
     }
 
 
-
     fun addSession(player: Player) {
-        sessions[player.uniqueId] = NsPlayerSession()
+        addSession(player.uniqueId)
+    }
+    fun addSession(playerUuid: UUID) {
+        sessions[playerUuid] = NsPlayerSession()
     }
 
     fun endSession(player: Player) {
-        sessions.remove(player.uniqueId)?.end()
+        endSession(player.uniqueId)
+    }
+    fun endSession(playerUuid: UUID) {
+        sessions.remove(playerUuid)?.end()
     }
 
     fun getSession(player: Player): NsPlayerSession {
-        if (player.uniqueId !in sessions) addSession(player)
-        return sessions[player.uniqueId]!!
+        return getSession(player.uniqueId)
+    }
+    fun getSession(playerUuid: UUID): NsPlayerSession {
+        if (playerUuid !in sessions) addSession(playerUuid)
+        return sessions[playerUuid]!!
     }
 
-
-    /**
-     * Setting selection corners should only happen in this method!!
-     */
-    fun setSimSelCorner(player: Player, newCorner: IVec3, cornerIdx: Int) {
-        playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return }
-
-        val sesh = getSession(player)
-
-        // Check if the new corner is in the same world as the previous one (if one was set)
-        val selW = sesh.sel.world
-        if (selW != null) {
-            if (selW.uid != player.world.uid) {
-                messenger.err(player, mmComp("Trying to select in 2 different worlds. Keep it in the same world," +
-                        " or do \"/sim desel\" and start selecting again."))
-                return
-            }
-        }
-
-        // If we're setting the same corner, don't do anything
-        val oldCorner = sesh.sel[cornerIdx]
-        if (oldCorner == newCorner) {
-            return
-        }
-
-        // Attempt a new selection
-        val newSelAttempt = when (cornerIdx) {
-            0 -> sesh.sel.withPos1(newCorner)
-            1 -> sesh.sel.withPos2(newCorner)
-            else -> error("Index out of bounds.")
-        }
-        // Spatial change validation
-        val spatialChangeValidationRes = simSelValidator.validateForSimSpatialChange(player, newSelAttempt)
-        if (spatialChangeValidationRes.isErr()) {
-            messenger.err(player, mmComp(spatialChangeValidationRes.getErr()))
-        }
-
-        // New selection attempt success
-        sesh.sel = newSelAttempt.withWorld(player.world)
-    }
-
-    fun desel(player: Player) {
-        playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return }
-
-        val sesh = getSession(player)
-
-        sesh.sel = SimSelection.empty()
-    }
-
-
-    fun compileSim(player: Player) {
-        playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return }
-        if (doesPlayerSimExists(player)) {
-            messenger.err(player, mmComp("A simulation is still active, please clear it before trying to" +
-                    " compile a new one."))
-            return
-        }
-
-
-        val validationRes = simSelValidator.validateForCompilation(player)
-        if (validationRes.isErr()) {
-            messenger.err(player, mmComp(validationRes.getErr()))
-        }
-
-
-        //val sesh = getSession(player)
-    }
+    fun getSessionUuids() = sessions.keys
 
 
 
-    private fun doesPlayerSimExists(player: Player): Boolean {
+
+
+
+    fun doesPlayerSimExists(player: Player): Boolean {
         val sesh = getSession(player)
         return sesh.nsSim != null
     }
@@ -287,17 +252,42 @@ class NOREStone : JavaPlugin() {
         return psLocation.plot
     }
 
-    /*private fun getPlotsInBoundary(
-        boundary: IntBoundary,
-        world: World,
-    ) {
-        val area = plotApi.getPlotAreas(world.name)
 
-        for (a in area) {
-            a.
+    /**
+     * Checks if sims and sel bounds are living in legality
+     */
+    fun simulationsPoliceCheckup(): List<Pair<UUID, List<SimAnomalies>>> {
+        val anomalies = mutableListOf<Pair<UUID, List<SimAnomalies>>>()
+
+        val sessionUuids = getSessionUuids()
+        for (seshUuid in sessionUuids) {
+            val player = Bukkit.getPlayer(seshUuid)!!
+            val sesh = getSession(seshUuid)
+
+            val playerHasSelectBypass = player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)
+
+            // Player selection check
+            var playerSelLegal = true
+            if (!playerHasSelectBypass && sesh.sel.isComplete()) {
+                playerSelLegal = simSelValidator.isSimSelInLegalSpot(sesh.sel, player)
+            }
+
+            // Simulation selection check
+            var simSelIsLegal = true
+            if (!playerHasSelectBypass && sesh.nsSim != null) {
+                simSelIsLegal = simSelValidator.isSimSelInLegalSpot(sesh.nsSim!!.sel, player)
+            }
+
+            // Get all anomalies
+            val thisSimAnomalies = mutableListOf<SimAnomalies>()
+            if (!playerSelLegal) thisSimAnomalies.add(SimAnomalies.PLAYER_SEL_BOUNDS)
+            if (!simSelIsLegal) thisSimAnomalies.add(SimAnomalies.SIM_SEL_BOUNDS)
+
+            anomalies.add(seshUuid to thisSimAnomalies)
         }
-    }*/
 
+        return anomalies
+    }
 
 
 }

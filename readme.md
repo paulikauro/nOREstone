@@ -19,8 +19,8 @@ allows you to run the command.
 
 General permissions:
 - `norestone.simulation.selection.select`: Base ability to select (=> in plots that are trusted or you're the owner of)
-- `norestone.simulation.compile`: Ability to compile/clear
 - `norestone.simulation.selection.select.bypass`: Ability to select everywhere
+- `norestone.simulation.compile`: Ability to compile/clear
 
 Number permissions:
 - `norestone.simulation.maxtps.<int>`:

@@ -6,7 +6,12 @@ class NsPlayerSession {
     var sel = SimSelection(null, null, null)
     var nsSim: NsSim? = null
 
-    fun end() {
+    fun endSim() {
         nsSim?.end()
+        nsSim = null
+    }
+
+    fun end() {
+        endSim()
     }
 }

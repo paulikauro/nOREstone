@@ -2,7 +2,6 @@ package com.sloimay.norestone
 
 
 class RsBackendInfo(val backendId: String, val displayName: String)
-
 val RS_BACKEND_INFO = listOf(
     RsBackendInfo("shrimple", "Shrimple")
 )
@@ -10,4 +9,8 @@ val RS_BACKEND_INFO = listOf(
 var NORESTONE: NOREStone? = null
 
 
-val PLOT_DEBUG = false
+object DEBUG {
+    val PLOT = false
+    val NUMBER_PERMS = false
+    val PLOT_ITERATION = false
+}

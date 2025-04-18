@@ -5,3 +5,5 @@ default_max_sim_sel_size_y: 100
 default_max_sim_sel_size_z: 100
 
 default_max_sim_volume: 1000000
+
+extra_safe_sim_state_checking: false

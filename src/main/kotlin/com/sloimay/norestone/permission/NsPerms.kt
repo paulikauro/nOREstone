@@ -4,7 +4,7 @@ package com.sloimay.norestone.permission
 private val prefix = "norestone"
 object NsPerms { // NorestonePerms
 
-    val cmd = "$prefix.cmd"
+    private val cmd = "$prefix.cmd"
     object Cmd {
 
         // == # /sim
@@ -15,7 +15,7 @@ object NsPerms { // NorestonePerms
             val step = "$sim.step"
             val compile = "$sim.compile"
             object Compile {
-                val backendAccess = "$compile.backendaccess"
+                private val backendAccess = "$compile.backendaccess"
                 object BackendAccess {
                     fun backendId(backendId: String) = "$backendAccess.$backendId"
                 }
@@ -25,27 +25,27 @@ object NsPerms { // NorestonePerms
 
     }
 
-    val simulation = "$prefix.simulation"
+    private val simulation = "$prefix.simulation"
     object Simulation {
         val maxTps = "$simulation.maxtps"
         object MaxTps {
             val bypass = "$maxTps.bypass"
         }
-        val selection = "$simulation.selection"
         val compile = "$simulation.compile"
+        private val selection = "$simulation.selection"
         object Selection {
             val select = "$selection.select"
             object Select {
                 val bypass = "$select.bypass"
             }
-            val maxDims = "$selection.maxdims"
+            private val maxDims = "$selection.maxdims"
             object MaxDims {
                 val x = "$maxDims.x"
                 val y = "$maxDims.y"
                 val z = "$maxDims.z"
                 val bypass = "$maxDims.bypass"
             }
-            val maxVolume = "$maxDims.volume"
+            val maxVolume = "$selection.volume"
             object MaxVolume {
                 val bypass = "$maxVolume.bypass"
             }

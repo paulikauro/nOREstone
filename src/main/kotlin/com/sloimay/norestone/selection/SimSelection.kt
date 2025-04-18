@@ -8,7 +8,7 @@ import org.bukkit.World
 
 /**
  * No responsibility of valid data, it just merely holds the data
- * Also is immutable
+ * Immutable 3-tuple (world, pos1, pos2)
  */
 data class SimSelection(
     val world: World?,
@@ -28,8 +28,8 @@ data class SimSelection(
     fun bounds() = if (isComplete()) IntBoundary.newInclusive(pos1!!, pos2!!) else null
 
 
-    fun withPos1(pos: IVec3) = SimSelection(world, pos, pos2)
-    fun withPos2(pos: IVec3) = SimSelection(world, pos1, pos)
+    fun withPos1(pos1: IVec3) = SimSelection(world, pos1, pos2)
+    fun withPos2(pos2: IVec3) = SimSelection(world, pos1, pos2)
     fun withWorld(w: World) = SimSelection(w, pos1, pos2)
 
 
@@ -37,5 +37,9 @@ data class SimSelection(
         fun empty(): SimSelection {
             return SimSelection(null, null, null)
         }
+    }
+
+    override fun toString(): String {
+        return "$pos1 $pos2 ${world?.uid}"
     }
 }
