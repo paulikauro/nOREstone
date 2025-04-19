@@ -15,6 +15,10 @@ repositories {
     maven("https://oss.sonatype.org/content/groups/public/") {
         name = "sonatype"
     }
+    maven {
+        name = "CodeMC"
+        url = uri("https://repo.codemc.io/repository/maven-public/")
+    }
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.lucko.me")
@@ -27,7 +31,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.4-R0.1-SNAPSHOT")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
-    // Commands
+    // CommandsAPI
     compileOnly("dev.jorel:commandapi-bukkit-core:9.7.0")
     implementation("dev.jorel:commandapi-bukkit-kotlin:9.7.0")
 
@@ -57,6 +61,9 @@ dependencies {
     implementation("net.kyori:adventure-api:4.14.0")
     implementation("net.kyori:adventure-text-minimessage:4.14.0")
     implementation("net.kyori:adventure-platform-bukkit:4.3.2")
+
+    // NBT API
+    compileOnly("de.tr7zw:item-nbt-api-plugin:2.14.1")
 }
 
 

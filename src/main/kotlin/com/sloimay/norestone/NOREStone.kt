@@ -8,6 +8,7 @@ import com.sloimay.norestone.listeners.PlotSquaredListener
 import com.sloimay.norestone.permission.NsPermProvider
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelValidator
+import com.sloimay.norestone.simulation.NsSimManager
 import com.sloimay.smath.vectors.IVec3
 import net.kyori.adventure.platform.bukkit.BukkitAudiences
 import net.luckperms.api.LuckPerms
@@ -37,7 +38,9 @@ class NOREStone : JavaPlugin() {
 
     val simSelValidator = SimSelValidator(this)
 
-    val playerInteract = PlayerInteractions(this)
+    val playerInteract = NsPlayerInteractions(this)
+
+    val simManager = NsSimManager(this)
 
 
     // lol pp
@@ -64,7 +67,9 @@ class NOREStone : JavaPlugin() {
 
     override fun onEnable() {
 
+        // I don't like this line but I couldn't figure out a better way lol
         NORESTONE = this
+
 
         // # Config
         saveDefaultConfig()
@@ -83,14 +88,15 @@ class NOREStone : JavaPlugin() {
         // # Adventure
         adventureSetup()
 
-        // # Register events
-        server.pluginManager.registerEvents(NorestoneListener(this), this)
-        plotApi.registerListener(PlotSquaredListener(this))
-
         // # Db file
         dataFolder.mkdirs()
         val dbFile = dataFolder.resolve("norestone.db")
         db = NorestoneDb(dbFile)
+
+
+        // # Register events
+        server.pluginManager.registerEvents(NorestoneListener(this), this)
+        plotApi.registerListener(PlotSquaredListener(this))
 
         // # Register commands
         SimCmd(this).register()
@@ -199,7 +205,9 @@ class NOREStone : JavaPlugin() {
         addSession(player.uniqueId)
     }
     fun addSession(playerUuid: UUID) {
-        sessions[playerUuid] = NsPlayerSession()
+        val player = Bukkit.getPlayer(playerUuid)
+        require(player != null) { "Trying to setup a session session for a null player." }
+        sessions[playerUuid] = NsPlayerSession(player, this)
     }
 
     fun endSession(player: Player) {
@@ -269,14 +277,15 @@ class NOREStone : JavaPlugin() {
             // Player selection check
             var playerSelLegal = true
             if (!playerHasSelectBypass && sesh.sel.isComplete()) {
-                playerSelLegal = simSelValidator.isSimSelInLegalSpot(sesh.sel, player)
+                playerSelLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(sesh.sel, player)
             }
 
             // Simulation selection check
             var simSelIsLegal = true
             if (!playerHasSelectBypass && sesh.nsSim != null) {
-                simSelIsLegal = simSelValidator.isSimSelInLegalSpot(sesh.nsSim!!.sel, player)
+                simSelIsLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(sesh.nsSim!!.sel, player)
             }
+
 
             // Get all anomalies
             val thisSimAnomalies = mutableListOf<SimAnomalies>()

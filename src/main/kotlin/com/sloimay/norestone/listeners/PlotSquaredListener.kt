@@ -11,7 +11,7 @@ import org.bukkit.Bukkit
 class PlotSquaredListener(val noreStone: NOREStone) {
 
     @Subscribe
-    fun onPlotEvent(e: PlotEvent) {
+    fun doSimPoliceChecks(e: PlotEvent) {
         if (!noreStone.consts.EXTRA_SAFE_SIM_BOUNDS_CHECKING) return
 
 
@@ -23,36 +23,37 @@ class PlotSquaredListener(val noreStone: NOREStone) {
             e is PlayerClaimPlotEvent || // Maybe you never need this one but I'm not sure
             e is PlayerPlotTrustedEvent ||
             e is PlotDeleteEvent || // This is fired when you do /plot delete, but you need to
-                                    // /plot confirm afterwards.
+                                    // /plot confirm afterwards, which this function isn't detecting.
             e is PlotMergeEvent
         )
 
-        if (isRelevantEvent) {
-            val anomalies = noreStone.simulationsPoliceCheckup()
-            for ((seshUuid, seshAnomalies) in anomalies) {
-                val player = Bukkit.getPlayer(seshUuid)
+        if (!isRelevantEvent) return
 
-                val sesh = noreStone.getSession(seshUuid)
+        val anomalies = noreStone.simulationsPoliceCheckup()
+        for ((seshUuid, seshAnomalies) in anomalies) {
+            val player = Bukkit.getPlayer(seshUuid)
 
-                for (anomaly in seshAnomalies) {
-                    when (anomaly) {
-                        SimAnomalies.PLAYER_SEL_BOUNDS -> {
-                            sesh.sel = SimSelection.empty()
-                            player?.nsWarn("Following a modification of your trusted status, or plots changing" +
-                                    " geometry, which lead to your selection being in an invalid state, your selection" +
-                                    " was reset.")
-                        }
-                        SimAnomalies.SIM_SEL_BOUNDS -> {
-                            sesh.endSim()
-                            player?.nsWarn("Following a modification of your trusted status, or plots changing" +
-                                    " geometry, which lead to your currently on-going simulation being in an invalid" +
-                                    " state, your simulation was cleared.")
-                        }
+            val sesh = noreStone.getSession(seshUuid)
+
+            for (anomaly in seshAnomalies) {
+                when (anomaly) {
+                    SimAnomalies.PLAYER_SEL_BOUNDS -> {
+                        sesh.sel = SimSelection.empty()
+                        player?.nsWarn("Following a modification of your trusted status, or plots changing" +
+                                " geometry, which lead to your selection being in an invalid state, your selection" +
+                                " was reset.")
+                    }
+                    SimAnomalies.SIM_SEL_BOUNDS -> {
+                        sesh.endSim()
+                        player?.nsWarn("Following a modification of your trusted status, or plots changing" +
+                                " geometry, which lead to your currently on-going simulation being in an invalid" +
+                                " state, your simulation was cleared.")
                     }
                 }
             }
         }
 
     }
+
 
 }

@@ -9,6 +9,8 @@ import org.bukkit.World
 /**
  * No responsibility of valid data, it just merely holds the data
  * Immutable 3-tuple (world, pos1, pos2)
+ *
+ * TODO: use a better system to avoid invalid states (such as null world with non-null positions)
  */
 data class SimSelection(
     val world: World?,
@@ -36,6 +38,13 @@ data class SimSelection(
     companion object {
         fun empty(): SimSelection {
             return SimSelection(null, null, null)
+        }
+
+        fun newValidOrEmpty(world: World?, pos1: IVec3?, pos2: IVec3?): SimSelection {
+            if (pos1 != null && pos2 != null) {
+                if (world == null) return empty()
+            }
+            return SimSelection(world, pos1, pos2)
         }
     }
 

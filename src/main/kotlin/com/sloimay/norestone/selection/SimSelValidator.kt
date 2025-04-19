@@ -1,7 +1,7 @@
 package com.sloimay.norestone.selection
 
-import com.plotsquared.core.PlotSquared
 import com.plotsquared.core.util.query.PlotQuery
+import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.vectors.IVec3
@@ -28,11 +28,11 @@ class SimSelValidator(val noreStone: NOREStone) {
 
     fun validateForSimSpatialChange(player: Player, newSel: SimSelection): Result<Unit, String> {
         println((newSel.pos1 != null).toInt() + (newSel.pos2 != null).toInt())
-        if (newSel.isSpatiallyComplete()) {
+        if (newSel.isComplete()) {
             val spatialValidationRes = validateSpatially(player, newSel)
             return spatialValidationRes
         } else {
-            if (!newSel.isSpatiallyNull()) {
+            if (newSel.isSpatiallyPartial()) {
                 require(newSel.world != null) { "Non spatially null selection needs a world." }
                 if (newSel.pos1 != null) {
                     val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1)
@@ -59,7 +59,7 @@ class SimSelValidator(val noreStone: NOREStone) {
         validateOverlap: Boolean = true,
         validatePlotPositioning: Boolean = true,
     ): Result<Unit, String> {
-        require(sel.isSpatiallyComplete()) { "Selection needs to be spatially complete" }
+        require(sel.isComplete()) { "Selection needs to be complete" }
 
         // Axis dimensions validation
         if (validateAxes) {
@@ -152,15 +152,15 @@ class SimSelValidator(val noreStone: NOREStone) {
         // Check if outside the world
         val cornerWithinWorldHeight = corner.y in cornerWorld.minHeight..cornerWorld.maxHeight
         if (!cornerWithinWorldHeight) {
-            return Result.err("Plot corner should be within world height.")
+            return Result.err("Selection corner should be within world height.")
         }
 
         // Check if the plot the corner is in, is in a trusted or owned plot
         val plot = noreStone.getPlotAt(cornerWorld, corner)
-            ?: return Result.err("Plot corner should be inside a plot.")
+            ?: return Result.err("Selection corner should be inside a plot.")
         val canSetCornerHere = (player.uniqueId in plot.owners) || (player.uniqueId in plot.trusted)
         if (!canSetCornerHere) {
-            return Result.err("Plot corner should be inside a plot you either own or are trusted on.")
+            return Result.err("Selection corner should be inside a plot you either own or are trusted on.")
         }
 
         return Result.ok(Unit)
@@ -198,7 +198,7 @@ class SimSelValidator(val noreStone: NOREStone) {
             return Result.ok(Unit)
         }
 
-        if (!isSimSelInLegalSpot(sel, player)) return Result.err(
+        if (!isSimSelInLegalSpot_assume2dPlots(sel, player)) return Result.err(
             "Selection overlaps with areas you do not have access to. " +
                     "(= Plots you aren't owner of or trusted on.)"
         )
@@ -256,5 +256,56 @@ class SimSelValidator(val noreStone: NOREStone) {
 
         return false
     }
+
+    fun isSimSelInLegalSpot_assume2dPlots(sel: SimSelection, player: Player): Boolean {
+        val checkStart = TimeSource.Monotonic.markNow()
+        // # Same as isSimSelInLegalSpot() but assuming the plots take up entire XZ columns
+        // # of the world, allowing us to only use a 2d array instead of a 3d one.
+        // # Performance improvement by H times; where H is the height of selection (W*H*L)
+
+        // TODO: introduce some early-stopping somehow but that can be tricky with mega plots
+        //       as I get them multiple times in the query, leading to us checking the same
+        //       boundaries multiple times.
+
+        fun IntBoundary.flatten() = IntBoundary.new(a.withY(0), b.withY(1))
+
+
+        val selBounds = sel.bounds()!!
+        val selBoundsFlat = selBounds.flatten()
+        val blockFlagArr = BitArray(selBoundsFlat.volumeLong())
+        blockFlagArr.zeroOut()
+
+        val plotsWhereSimAllowed = PlotQuery
+            .newQuery()
+            .inWorld(sel.world!!.name)
+            .withMember(player.uniqueId)
+            .asList()
+            .filter { (player.uniqueId in it.trusted) || (player.uniqueId in it.owners) }
+
+        for (plot in plotsWhereSimAllowed) {
+            val cuboidRegions = plot.regions
+            for (cuboidRegion in cuboidRegions) {
+                val boundaryToTest = cuboidRegion.toIntBounds().flatten()
+
+                if (!boundaryToTest.intersects(selBoundsFlat)) continue
+
+                // Iterate only through the blocks in common
+                val commonBound = boundaryToTest.getClampedInside(selBoundsFlat)
+                for (pos in commonBound.iterYzx()) {
+                    val arrIdx = selBoundsFlat.posToYzxIdx(pos)
+                    blockFlagArr[arrIdx.toLong()] = true
+                }
+            }
+        }
+
+        println("Checking sim sel legal spot took ${checkStart.elapsedNow()}")
+
+        if (blockFlagArr.isAllOne()) {
+            return true
+        }
+
+        return false
+    }
+
 
 }

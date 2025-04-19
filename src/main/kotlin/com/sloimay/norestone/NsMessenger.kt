@@ -1,5 +1,8 @@
 package com.sloimay.norestone
 
+import com.sloimay.norestone.selection.SimSelValidator
+import com.sloimay.norestone.selection.SimSelection
+import com.sloimay.smath.vectors.IVec3
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
 
@@ -32,4 +35,13 @@ fun Player.nsErr(msg: String) {
 
 fun Player.nsWarn(msg: String) {
     NORESTONE!!.messenger.warn(this, mmComp(msg))
+}
+
+fun Player.nsInfoSimSelSetPos(pos: IVec3, idx: Int, simSel: SimSelection) {
+    val bounds = simSel.bounds()
+    var msg = "Set pos ${idx + 1} at (${pos.x}, ${pos.y}, ${pos.z})"
+    if (bounds != null) {
+        msg += " (${(bounds.volumeLong())})"
+    }
+    nsInfo(msg)
 }

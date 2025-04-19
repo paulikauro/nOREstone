@@ -14,6 +14,8 @@ object NsPerms { // NorestonePerms
             val select = "$sim.select"
             val step = "$sim.step"
             val compile = "$sim.compile"
+            val selWand = "$sim.selwand"
+            val backends = "$sim.backends"
             object Compile {
                 private val backendAccess = "$compile.backendaccess"
                 object BackendAccess {
@@ -38,6 +40,7 @@ object NsPerms { // NorestonePerms
             object Select {
                 val bypass = "$select.bypass"
             }
+            val changeSelWand = "$selection.changeselwand"
             private val maxDims = "$selection.maxdims"
             object MaxDims {
                 val x = "$maxDims.x"

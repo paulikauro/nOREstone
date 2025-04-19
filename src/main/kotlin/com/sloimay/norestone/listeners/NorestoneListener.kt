@@ -6,9 +6,12 @@ import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
+import com.sloimay.smath.vectors.IVec3
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
@@ -23,6 +26,44 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
     @EventHandler
     fun onPlayerLeave(e: PlayerQuitEvent) {
         noreStone.endSession(e.player)
+    }
+
+    @EventHandler
+    fun onPlayerUseSimSelWand(e: PlayerInteractEvent) {
+
+        val p = e.player
+        if (p.gameMode != GameMode.CREATIVE) return
+        if (e.item == null) return
+
+        val sesh = noreStone.getSession(p)
+        if (e.item!!.type != sesh.selWand.type) return
+
+
+
+        val action = e.action
+        val actionIsClickBlock = action == Action.RIGHT_CLICK_BLOCK || action == Action.LEFT_CLICK_BLOCK
+        if (!actionIsClickBlock) return
+
+        // Selection click so we cancel
+        e.isCancelled = true
+
+        val blockClicked = e.clickedBlock ?: return
+        val posToSet = IVec3.fromBlock(blockClicked)
+
+        val cornerIdx = when (action) {
+            Action.LEFT_CLICK_BLOCK -> 0
+            Action.RIGHT_CLICK_BLOCK -> 1
+            else -> error("Unreachable")
+        }
+
+        val simSelSettingRes = noreStone.playerInteract.setSimSelCorner(p, posToSet, cornerIdx)
+
+        if (simSelSettingRes.isErr()) {
+            p.nsErr(simSelSettingRes.getErr())
+        } else {
+            p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
+        }
+
     }
 
 

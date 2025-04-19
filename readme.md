@@ -2,27 +2,32 @@
 
 
 
+Notes:
+- All permissions are independent, to allow for maximal customizability. While it can be error-prone, going through each permission of this list one at a time should do the trick.
+- 
 
 
-Command permissions:
+#### Command permissions:
 - `norestone.cmd.sim`: "/sim"
 - `norestone.cmd.sim.select`: "/sim desel", "/sim pos1", "/sim 1", "/sim pos2", "/sim 2"
 - `norestone.cmd.sim.freeze`: "/sim freeze"
 - `norestone.cmd.sim.step`: "/sim step"
 - `norestone.cmd.sim.compile`: "/sim compile", "/sim clear"
 - `norestone.cmd.sim.compile.backendaccess.<backendId>`: "/sim compile <backendId>"
+- `norestone.cmd.sim.selwand`: "/sim selwand"
 
 Disclaimer: command permissions are separate from the underlying mechanism they allow.
 Example: granting access to "/sim compile" does not necessarily allow you to compile, it only
 allows you to run the command.
 
 
-General permissions:
+#### General permissions:
 - `norestone.simulation.selection.select`: Base ability to select (=> in plots that are trusted or you're the owner of)
 - `norestone.simulation.selection.select.bypass`: Ability to select everywhere
+- `norestone.simulation.selection.changeselwand`: Ability to change the player's selelection wand
 - `norestone.simulation.compile`: Ability to compile/clear
 
-Number permissions:
+#### Number permissions:
 - `norestone.simulation.maxtps.<int>`:
 - `norestone.simulation.maxtps.bypass`:
 - `norestone.simulation.maxdims.x.<int>`:
