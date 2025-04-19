@@ -5,6 +5,11 @@ import com.sloimay.norestone.BurstWorkThread
 import com.sloimay.norestone.NOREStone
 import kotlin.time.TimeSource
 
+
+/**
+ * TODO: Make the sim removal and adding of player sessions done through the sim manager too (or maybe remove the
+ *       sim pointer from the NOREStone object altogether? idk i likey it being there too
+ */
 class NsSimManager(val noreStone: NOREStone) {
 
     private val simulations = hashSetOf<NsSim>()
@@ -16,7 +21,7 @@ class NsSimManager(val noreStone: NOREStone) {
     private val simMutQueueLock = Object()
     private val simMutQueue = mutableListOf<Pair<NsSim, (NsSim) -> Unit>>()
 
-    // ==
+    // == Update cycle variables
     private val timingThread = BurstWorkThread()
     private val simThreads = hashMapOf<NsSim, BurstWorkThread>()
 

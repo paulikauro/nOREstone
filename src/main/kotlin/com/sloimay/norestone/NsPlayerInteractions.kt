@@ -2,10 +2,14 @@ package com.sloimay.norestone
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sloimay.mcvolume.McVolume
+import com.sloimay.nodestonecore.backends.RedstoneSimBackend
+import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelection
+import com.sloimay.norestone.simulation.NsSim
 import com.sloimay.smath.vectors.IVec3
 import de.tr7zw.nbtapi.NBT
+import de.tr7zw.nbtapi.NBTCompound
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Chunk
@@ -81,7 +85,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
     }
 
 
-    fun compileSim(player: Player): Result<Unit, String> {
+    fun compileSim(player: Player, backendId: String, compileFlags: List<String>): Result<Unit, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return Result.err(it) }
         if (noreStone.doesPlayerSimExists(player)) {
             return Result.err("A simulation is still active, please clear it before trying to" +
@@ -90,6 +94,10 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         val selValidationRes = noreStone.simSelValidator.validateForCompilation(player)
         if (selValidationRes.isErr()) return selValidationRes
+
+        if (!RS_BACKEND_INFO.any { it.backendId == backendId }) {
+            return Result.err("Unknown backend of id '${backendId}'.")
+        }
 
         val sesh = noreStone.getSession(player)
         val sel = sesh.sel
@@ -120,13 +128,29 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
                     // Transfer NBT to the mcvolume
                     NBT.get(tileEntityBukkitBlockState) { nbt ->
-
+                        val querzNbt = nbtApiToQuerzNbt(nbt as NBTCompound)
+                        vol.setTileData(volPos, querzNbt)
                     }
                 }
             }
-
         }
 
+        // Make the backend, do it differently depending on which one it is
+        val backendInfo = RS_BACKEND_INFO.first { it.backendId == backendId }
+        val rsBackend: RedstoneSimBackend
+        if (backendInfo.backendId == RS_BACKENDS.shrimple.backendId) {
+            // Shrimple compilation
+            rsBackend = ShrimpleBackend.new(vol, volBounds)
+        } else {
+            return Result.err("Unknown backend of id '${backendId}'.")
+        }
+
+        // Make a new NsSim
+        val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, 20)
+
+        // Add it to the manager
+        sesh.nsSim = nsSim
+        noreStone.simManager.requestSimAdd(nsSim)
 
         return Result.ok(Unit)
     }

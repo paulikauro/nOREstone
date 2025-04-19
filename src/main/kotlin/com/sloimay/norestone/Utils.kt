@@ -7,8 +7,13 @@ import com.sloimay.smath.vectors.DVec3
 import com.sloimay.smath.vectors.IVec3
 import com.sloimay.smath.vectors.ivec3
 import de.tr7zw.nbtapi.NBTCompound
+import de.tr7zw.nbtapi.NBTListCompound
+import de.tr7zw.nbtapi.NBTReflectionUtil
+import de.tr7zw.nbtapi.NBTType
+import de.tr7zw.nbtapi.handler.NBTHandlers
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.querz.nbt.tag.*
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.block.Block
@@ -195,7 +200,89 @@ fun mmComp(miniMsg: String): Component {
 
 
 
-fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound) {
+fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
+
+    fun nbtApiCompoundToQuerzNbtCompound(nbtApiCompound: NBTCompound): CompoundTag {
+
+        val querzCompound = CompoundTag()
+
+        for (key in nbtApiCompound.keys) {
+
+            val t = nbtApiCompound.getType(key)!!
+
+            when (t) {
+                NBTType.NBTTagEnd -> {}
+                NBTType.NBTTagByte -> querzCompound.putByte(key, nbtApiCompound.getByte(key))
+                NBTType.NBTTagShort -> querzCompound.putShort(key, nbtApiCompound.getShort(key))
+                NBTType.NBTTagInt -> querzCompound.putInt(key, nbtApiCompound.getInteger(key))
+                NBTType.NBTTagLong -> querzCompound.putLong(key, nbtApiCompound.getLong(key))
+                NBTType.NBTTagFloat -> querzCompound.putFloat(key, nbtApiCompound.getFloat(key))
+                NBTType.NBTTagDouble -> querzCompound.putDouble(key, nbtApiCompound.getDouble(key))
+                NBTType.NBTTagByteArray -> querzCompound.putByteArray(key, nbtApiCompound.getByteArray(key))
+                NBTType.NBTTagString -> querzCompound.putString(key, nbtApiCompound.getString(key))
+                NBTType.NBTTagIntArray -> querzCompound.putIntArray(key, nbtApiCompound.getIntArray(key))
+                NBTType.NBTTagLongArray -> querzCompound.putLongArray(key, nbtApiCompound.getLongArray(key))
+                NBTType.NBTTagCompound -> {
+                    querzCompound.put(key, nbtApiCompoundToQuerzNbtCompound(nbtApiCompound.getCompound(key)!!))
+                }
+
+                NBTType.NBTTagList -> {
+                    val listType = nbtApiCompound.getListType(key)!!
+                    if (listType == NBTType.NBTTagEnd) break
+
+                    var listTag: ListTag<*>? = null
+                    when (listType) {
+                        NBTType.NBTTagEnd -> error("Unreachable")
+                        NBTType.NBTTagByte -> {}
+                        NBTType.NBTTagShort -> {}
+                        NBTType.NBTTagInt -> {
+                            val l = ListTag(IntTag::class.java)
+                                .also { list -> nbtApiCompound.getIntegerList(key).forEach { t -> list.addInt(t) } }
+                        }
+                        NBTType.NBTTagLong -> {
+                            listTag = ListTag(LongTag::class.java)
+                                .also { list -> nbtApiCompound.getLongList(key).forEach { t -> list.addLong(t) } }
+                        }
+                        NBTType.NBTTagFloat -> {
+                            listTag = ListTag(FloatTag::class.java)
+                                .also { list -> nbtApiCompound.getFloatList(key).forEach { t -> list.addFloat(t) } }
+                        }
+                        NBTType.NBTTagDouble -> {
+                            listTag = ListTag(DoubleTag::class.java)
+                                .also { list -> nbtApiCompound.getDoubleList(key).forEach { t -> list.addDouble(t) } }
+                        }
+                        NBTType.NBTTagByteArray -> {}
+                        NBTType.NBTTagString -> {
+                            listTag = ListTag(StringTag::class.java)
+                                .also { list -> nbtApiCompound.getStringList(key).forEach { t -> list.addString(t) } }
+                        }
+                        NBTType.NBTTagList -> {}
+                        NBTType.NBTTagCompound ->{
+                            listTag = ListTag(CompoundTag::class.java)
+                                .also { list ->
+                                    try {
+                                        nbtApiCompound.getCompoundList(key).forEach { t ->
+                                            list.add(nbtApiCompoundToQuerzNbtCompound(t as NBTCompound))
+                                        }
+                                    } catch (_: Exception) {}
+                                }
+                        }
+                        NBTType.NBTTagIntArray -> {
+                            listTag = ListTag(IntArrayTag::class.java)
+                                .also { list -> nbtApiCompound.getIntArrayList(key).forEach { t -> list.addIntArray(t) } }
+                        }
+                        NBTType.NBTTagLongArray -> {}
+                    }
+
+                    querzCompound.put(key, listTag)
+                }
+            }
+        }
+
+        return querzCompound
+    }
+
+    return nbtApiCompoundToQuerzNbtCompound(nbtApiNbt)
 
 }
 

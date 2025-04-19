@@ -4,10 +4,20 @@ import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
 
+
 class RsBackendInfo(val backendId: String, val displayName: String, val helpStr: String, val compileFlags: List<String>)
+
+object RS_BACKENDS {
+    val shrimple = RsBackendInfo(
+        "shrimple",
+        "Shrimple",
+        "Simple single threaded MCHPRS-like backend.",
+        listOf("io-only")
+    )
+}
+
 val RS_BACKEND_INFO = listOf(
-    RsBackendInfo("shrimple", "Shrimple", "Simple single threaded MCHPRS-like backend.",
-        listOf("io-only"))
+    RS_BACKENDS.shrimple,
 )
 
 var NORESTONE: NOREStone? = null
@@ -18,4 +28,5 @@ object DEBUG {
     val PLOT = false
     val NUMBER_PERMS = false
     val PLOT_ITERATION = false
+    val NBTAPI_TO_QUERZ = false
 }

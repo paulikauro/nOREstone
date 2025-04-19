@@ -90,6 +90,8 @@ class SimCmd(val noreStone: NOREStone) {
             literalArgument("compile") {
                 withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.compile))
 
+                //TODO: compile cmd
+
                 anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("COMPILE") }
 
 
@@ -100,6 +102,18 @@ class SimCmd(val noreStone: NOREStone) {
                         anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("COMPILE W BACKEND ${bi.displayName}") }
 
                     }
+                }
+            }
+
+            literalArgument("clear") {
+                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.compile))
+
+                playerExecutor { p, args ->
+                    if (!noreStone.doesPlayerSimExists(p)) {
+                        p.nsErr("No simulation currently on-going.")
+                        return@playerExecutor
+                    }
+                    // TODO: clear cmd
                 }
             }
 
@@ -144,12 +158,6 @@ class SimCmd(val noreStone: NOREStone) {
                         logRes(p, res)
                     }
                 }
-            }
-
-
-            literalArgument("clear") {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.compile))
-
             }
 
 

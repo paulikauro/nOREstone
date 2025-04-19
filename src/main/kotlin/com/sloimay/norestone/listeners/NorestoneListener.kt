@@ -7,6 +7,9 @@ import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.vectors.IVec3
+import de.tr7zw.nbtapi.NBT
+import de.tr7zw.nbtapi.NBTCompound
+import net.querz.nbt.io.SNBTUtil
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.event.EventHandler
@@ -139,13 +142,18 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
 
         }
 
+        if (DEBUG.NBTAPI_TO_QUERZ) {
+            if (e.action != Action.RIGHT_CLICK_BLOCK) return
+
+            val block = e.clickedBlock!!
+            NBT.get(block.state) { nbt ->
+                val querz = nbtApiToQuerzNbt(nbt as NBTCompound)
+                Bukkit.broadcastMessage(SNBTUtil.toSNBT(querz))
+                println(SNBTUtil.toSNBT(querz))
+            }
+        }
+
     }
 
-
-    /**
-     * TODO:
-     *  Do some bounds checking on the sim selections anytime there's an update about plot trusts,
-     *  plot clears, plot adds, plot claims etc..
-     */
 
 }

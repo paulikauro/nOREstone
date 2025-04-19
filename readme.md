@@ -1,6 +1,10 @@
+
+### Known bugs
+- Due to quirks with NBTAPI, I couldn't figure out how to get containers with items that have complex NBT on them to be recognized by redstone simulations properly. Named items should be fine. But do remember that as soon as one item is illegal, the SS returned by the container is undefined behavior.
+
+
+
 ### Permissions:
-
-
 
 Notes:
 - All permissions are independent, to allow for maximal customizability. While it can be error-prone, going through each permission of this list one at a time should do the trick.
