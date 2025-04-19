@@ -1,8 +1,9 @@
 package com.sloimay.norestone.simulation
 
-import com.sk89q.worldedit.regions.CuboidRegion
 import com.sloimay.norestone.BurstWorkThread
 import com.sloimay.norestone.NOREStone
+import org.bukkit.entity.Player
+import java.util.*
 import kotlin.time.TimeSource
 
 
@@ -13,10 +14,11 @@ import kotlin.time.TimeSource
 class NsSimManager(val noreStone: NOREStone) {
 
     private val simulations = hashSetOf<NsSim>()
+    private val uuidToSimulations = hashMapOf<UUID, NsSim>()
 
     private val queueLock = Object()
-    private val addingQueue = mutableListOf<NsSim>()
-    private val removingQueue = mutableListOf<NsSim>()
+    private val addingQueue = mutableListOf<Pair<UUID, NsSim>>()
+    private val removingQueue = mutableListOf<Pair<UUID, NsSim>>()
 
     private val simMutQueueLock = Object()
     private val simMutQueue = mutableListOf<Pair<NsSim, (NsSim) -> Unit>>()
@@ -34,16 +36,20 @@ class NsSimManager(val noreStone: NOREStone) {
     // ==
 
 
-    fun requestSimAdd(sim: NsSim) {
-        synchronized(queueLock) { addingQueue.add(sim) }
+    fun requestSimAdd(playerUuid: UUID, sim: NsSim) {
+        synchronized(queueLock) { addingQueue.add(playerUuid to sim) }
     }
-    fun requestSimRemove(sim: NsSim) {
-        synchronized(queueLock) { removingQueue.add(sim) }
+    fun requestSimRemove(playerUuid: UUID, sim: NsSim) {
+        synchronized(queueLock) { removingQueue.add(playerUuid to sim) }
     }
 
     fun requestSimVarMutation(sim: NsSim, block: (NsSim) -> Unit) {
         synchronized(simMutQueueLock) { simMutQueue.add(sim to block) }
     }
+
+
+    fun playerUuidSimExists(playerUuid: UUID) = playerUuid in uuidToSimulations.keys
+    fun getPlayerSim(playerUuid: UUID) = uuidToSimulations[playerUuid]
 
 
 
@@ -144,23 +150,26 @@ class NsSimManager(val noreStone: NOREStone) {
 
     private fun flushAddRemoveQueue() {
         synchronized(queueLock) {
-            for (s in addingQueue) {
-                addSim(s)
+            for ((uuid, s) in addingQueue) {
+                if (s !in simulations) addSim(uuid, s)
             }
-            for (s in removingQueue) {
-                removeSim(s)
+            for ((uuid, s) in removingQueue) {
+                if (s in simulations) removeSim(uuid, s)
             }
             addingQueue.clear()
             removingQueue.clear()
         }
     }
 
-    private fun addSim(s: NsSim) {
+    private fun addSim(uuid: UUID, s: NsSim) {
         simulations.add(s)
+        uuidToSimulations[uuid] = s
         simThreads[s] = BurstWorkThread()
     }
-    private fun removeSim(s: NsSim) {
+    private fun removeSim(uuid: UUID, s: NsSim) {
+        s.endingSequence()
         simulations.remove(s)
+        uuidToSimulations.remove(uuid)
         simThreads.remove(s)
     }
 

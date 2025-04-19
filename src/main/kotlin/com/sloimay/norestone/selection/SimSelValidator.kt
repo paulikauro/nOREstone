@@ -174,8 +174,8 @@ class SimSelValidator(val noreStone: NOREStone) {
             if (playerUuid == player.uniqueId) continue
             val playerCheckedAgainst = Bukkit.getPlayer(playerUuid) ?: continue
 
-            val pcaSesh = noreStone.getSession(playerCheckedAgainst)
-            val pcaSim = pcaSesh.nsSim ?: continue
+            //val pcaSesh = noreStone.getSession(playerCheckedAgainst)
+            val pcaSim = noreStone.simManager.getPlayerSim(playerCheckedAgainst.uniqueId) ?: continue
 
             if (pcaSim.sel.world!!.uid != sel.world!!.uid) continue
 

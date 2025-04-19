@@ -10,7 +10,6 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
     val db = noreStone.db
 
     var sel: SimSelection
-    var nsSim: NsSim?
     var selWand: ItemStack
 
     init {
@@ -21,21 +20,16 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
 
         sel = playerData.simSel
         selWand = playerData.selWantItem
-        nsSim = null
     }
 
-
-    /**
-     * Simulation destroy routine
-     */
-    fun endSim() {
-        nsSim?.endingSequence()
-        nsSim = null
-    }
 
 
     fun end() {
-        endSim()
+
+        // End simulation
+        noreStone.simManager.getPlayerSim(player.uniqueId)?.let {
+            noreStone.simManager.requestSimRemove(player.uniqueId, it)
+        }
 
         // Write player data that changed to the db
         println("Saving sel: ${sel.nsSerialize()}")

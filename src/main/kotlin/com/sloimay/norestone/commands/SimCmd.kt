@@ -17,6 +17,7 @@ class SimCmd(val noreStone: NOREStone) {
         commandTree("sim") {
             withPermission(noreStone.pp.permStr(NsPerms.Cmd.sim))
 
+
             literalArgument("backends") {
                 withPermission(NsPerms.Cmd.Sim.backends)
 
@@ -27,6 +28,7 @@ class SimCmd(val noreStone: NOREStone) {
                     }
                 }
             }
+
 
             literalArgument("desel") {
                 withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
@@ -99,8 +101,35 @@ class SimCmd(val noreStone: NOREStone) {
                     literalArgument(bi.backendId) {
                         withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.Compile.BackendAccess.backendId(bi.backendId)))
 
-                        anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("COMPILE W BACKEND ${bi.displayName}") }
+                        // Compile with compile flags
+                        greedyStringArgument("compile_flags") {
+                            playerExecutor { p, args ->
+                                val flagParseResult = tryParseCompileFlags(
+                                    args["compile_flags"] as String, bi
+                                )
+                                if (flagParseResult.isErr()) {
+                                    p.nsErr(flagParseResult.getErr())
+                                    return@playerExecutor
+                                }
 
+                                val flags = flagParseResult.getOk()
+                                val compileResult =
+                                    noreStone.playerInteract.compileSim(p, bi.backendId, flags, true)
+                                if (compileResult.isErr()) {
+                                    p.nsErr(compileResult.getErr())
+                                    return@playerExecutor
+                                }
+                            }
+                        }
+
+                        // Compile without compile flags
+                        playerExecutor { p, args ->
+                            val compileResult = noreStone.playerInteract.compileSim(p, bi.backendId, listOf(), true)
+                            if (compileResult.isErr()) {
+                                p.nsErr(compileResult.getErr())
+                                return@playerExecutor
+                            }
+                        }
                     }
                 }
             }
@@ -113,10 +142,11 @@ class SimCmd(val noreStone: NOREStone) {
                         p.nsErr("No simulation currently on-going.")
                         return@playerExecutor
                     }
-                    // TODO: clear cmd
+                    noreStone.simManager.getPlayerSim(p.uniqueId)?.let {
+                        noreStone.simManager.requestSimRemove(p.uniqueId, it)
+                    }
                 }
             }
-
 
 
             literalArgument("selwand") {

@@ -5,14 +5,17 @@ import org.bukkit.inventory.ItemStack
 
 
 
-class RsBackendInfo(val backendId: String, val displayName: String, val helpStr: String, val compileFlags: List<String>)
+class RsBackendInfo(val backendId: String, val displayName: String, val helpStr: String, val compileFlags: List<CompileFlag>)
+class CompileFlag(val id: String, val desc: String)
 
 object RS_BACKENDS {
     val shrimple = RsBackendInfo(
         "shrimple",
         "Shrimple",
         "Simple single threaded MCHPRS-like backend.",
-        listOf("io-only")
+        listOf(
+            CompileFlag("io-only", "Only visually update IO blocks.")
+        )
     )
 }
 

@@ -31,7 +31,7 @@ class PlotSquaredListener(val noreStone: NOREStone) {
 
         val anomalies = noreStone.simulationsPoliceCheckup()
         for ((seshUuid, seshAnomalies) in anomalies) {
-            val player = Bukkit.getPlayer(seshUuid)
+            val player = Bukkit.getPlayer(seshUuid)!!
 
             val sesh = noreStone.getSession(seshUuid)
 
@@ -39,15 +39,18 @@ class PlotSquaredListener(val noreStone: NOREStone) {
                 when (anomaly) {
                     SimAnomalies.PLAYER_SEL_BOUNDS -> {
                         sesh.sel = SimSelection.empty()
-                        player?.nsWarn("Following a modification of your trusted status, or plots changing" +
+                        player.nsWarn("Following a modification of your trusted status, or plots changing" +
                                 " geometry, which lead to your selection being in an invalid state, your selection" +
                                 " was reset.")
                     }
                     SimAnomalies.SIM_SEL_BOUNDS -> {
-                        sesh.endSim()
-                        player?.nsWarn("Following a modification of your trusted status, or plots changing" +
-                                " geometry, which lead to your currently on-going simulation being in an invalid" +
-                                " state, your simulation was cleared.")
+                        noreStone.simManager.getPlayerSim(player.uniqueId)?.let {
+                            noreStone.simManager.requestSimRemove(player.uniqueId, it)
+                            player.nsWarn("Following a modification of your trusted status, or plots changing" +
+                                    " geometry, which lead to your currently on-going simulation being in an invalid" +
+                                    " state, your simulation was cleared.")
+                        }
+
                     }
                 }
             }

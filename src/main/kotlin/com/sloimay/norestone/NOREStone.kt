@@ -42,6 +42,8 @@ class NOREStone : JavaPlugin() {
 
     val simManager = NsSimManager(this)
 
+    val syncedWorker = SyncedWorker()
+
 
     // lol pp
     lateinit var pp: NsPermProvider
@@ -100,6 +102,9 @@ class NOREStone : JavaPlugin() {
 
         // # Register commands
         SimCmd(this).register()
+
+        // # Tickers
+        Bukkit.getScheduler().runTaskTimer(this, NsTicker(this), 1, 1)
 
     }
 
@@ -233,8 +238,7 @@ class NOREStone : JavaPlugin() {
 
 
     fun doesPlayerSimExists(player: Player): Boolean {
-        val sesh = getSession(player)
-        return sesh.nsSim != null
+        return simManager.playerUuidSimExists(player.uniqueId)
     }
 
 
@@ -282,8 +286,9 @@ class NOREStone : JavaPlugin() {
 
             // Simulation selection check
             var simSelIsLegal = true
-            if (!playerHasSelectBypass && sesh.nsSim != null) {
-                simSelIsLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(sesh.nsSim!!.sel, player)
+            val playerSim = simManager.getPlayerSim(player.uniqueId)
+            if (!playerHasSelectBypass && playerSim != null) {
+                simSelIsLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(playerSim.sel, player)
             }
 
 

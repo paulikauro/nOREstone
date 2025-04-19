@@ -52,6 +52,7 @@ abstract class Result<out O, out E> {
     abstract fun getErr(): E
 
     companion object {
+        fun ok(): Result<Unit, Nothing> = ok(Unit)
         fun <T> ok(v: T): Result<T, Nothing> = Ok(v)
         fun <T> err(v: T): Result<Nothing, T> = Err(v)
     }
@@ -286,6 +287,28 @@ fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
 
 }
 
+
+fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<List<String>, String> {
+    val availableFlags = backendInfo.compileFlags.map { it.id }
+
+    val rawFlags = flagsStr.split(" ")
+    val flags = mutableListOf<String>()
+    for (rawFlag in rawFlags) {
+
+        if (!rawFlag.startsWith("-")) {
+            return Result.err("Compile flags must start with a dash but got '${rawFlag}'.")
+        }
+
+        val flag = rawFlag.removePrefix("-")
+        if (flag !in availableFlags) {
+            return Result.err("Unknown compile flag '$flag' for backend '${backendInfo.backendId}'." +
+                    " Available compile flags: ${availableFlags.joinToString { "-$it" }}. ")
+        }
+
+    }
+
+    return Result.ok(flags)
+}
 
 
 

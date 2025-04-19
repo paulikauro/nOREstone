@@ -36,7 +36,7 @@ dependencies {
     implementation("dev.jorel:commandapi-bukkit-kotlin:9.7.0")
 
     // Nodestone
-    implementation("com.github.sloimayyy:nodestone:1.0.3")
+    implementation("com.github.sloimayyy:nodestone:1.0.4")
     implementation("com.google.code.gson:gson:2.13.0")
     implementation("com.github.sloimayyy:smath:1.1.2")
     implementation("com.github.sloimayyy:mcvolume:1.0.9")
