@@ -19,6 +19,7 @@ import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.entity.Player
 import kotlin.math.ceil
+import kotlin.math.round
 
 
 private class Ok<T>(val v: T) : Result<T, Nothing>() {
@@ -190,6 +191,9 @@ fun IntBoundary.Companion.newInclusive(a: IVec3, b: IVec3): IntBoundary {
     return IntBoundary.new(aReal, bReal + 1)
 }
 
+fun Double.round(prec: Int) = round(this * prec.toDouble()) / prec.toDouble()
+
+
 fun IntBoundary.volumeLong() = (b - a).eProdLong()
 
 
@@ -305,6 +309,7 @@ fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<L
                     " Available compile flags: ${availableFlags.joinToString { "-$it" }}. ")
         }
 
+        flags.add(flag)
     }
 
     return Result.ok(flags)

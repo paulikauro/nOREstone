@@ -4,6 +4,7 @@ import com.plotsquared.core.PlotSquared
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.mcvolume.IntBoundary
+import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.vectors.IVec3
@@ -12,9 +13,11 @@ import de.tr7zw.nbtapi.NBTCompound
 import net.querz.nbt.io.SNBTUtil
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
+import org.bukkit.Material
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockRedstoneEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
@@ -67,6 +70,69 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
             p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
         }
 
+    }
+
+
+    @EventHandler
+    fun onRedstoneChangeInSim(e: BlockRedstoneEvent) {
+        fun cancelEvent() {
+            e.newCurrent = e.oldCurrent
+        }
+
+        val block = e.block
+        val blockPos = block.location.blockPos()
+
+        noreStone.simManager.applyOnSimsReadOnly { sim ->
+            if (sim.sel.world!!.uid != e.block.world.uid) return@applyOnSimsReadOnly
+            // Update happened in the same world as this sim
+            val simWorldBounds = sim.sel.bounds()!!
+            if (!simWorldBounds.posInside(blockPos)) return@applyOnSimsReadOnly
+            // Update happened in this sim bounds
+
+            // Handle user inputs per backend
+            val nodeStoneSim = sim.nodestoneSim
+            if (nodeStoneSim is ShrimpleBackend) {
+                if (block.type in INPUT_MATERIALS) {
+
+                    // Inputs in shrimple are relative to the simulation location in the volume
+                    // (which is anchored at 0,0)
+                    val blockPosInNodestoneSim = blockPos - sim.simWorldOrigin
+                    val positionedInput = sim.positionedInputs[blockPosInNodestoneSim]
+
+                    if (positionedInput != null) {
+                        val doCancelEvent: Boolean = when (block.type) {
+                            Material.LEVER -> {
+                                nodeStoneSim.scheduleUserInputChange(0, positionedInput, e.newCurrent)
+                                true
+                            }
+
+                            in STONE_BUTTON_MATS -> {
+                                nodeStoneSim.scheduleButtonPress(0, 10, positionedInput)
+                                true
+                            }
+                            in WOODEN_BUTTON_MATS -> {
+                                nodeStoneSim.scheduleButtonPress(0, 15, positionedInput)
+                                true
+                            }
+
+                            in PRESSURE_PLATE_MATS -> {
+                                nodeStoneSim.scheduleUserInputChange(0, positionedInput, e.newCurrent)
+                                false
+                            }
+
+                            else -> { true }
+                        }
+
+                        if (doCancelEvent) {
+                            cancelEvent()
+                        }
+                    }
+
+                    return@applyOnSimsReadOnly
+                }
+            }
+            cancelEvent()
+        }
     }
 
 

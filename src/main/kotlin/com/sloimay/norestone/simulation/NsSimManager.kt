@@ -2,17 +2,15 @@ package com.sloimay.norestone.simulation
 
 import com.sloimay.norestone.BurstWorkThread
 import com.sloimay.norestone.NOREStone
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import java.util.*
 import kotlin.time.TimeSource
 
 
-/**
- * TODO: Make the sim removal and adding of player sessions done through the sim manager too (or maybe remove the
- *       sim pointer from the NOREStone object altogether? idk i likey it being there too
- */
-class NsSimManager(val noreStone: NOREStone) {
+class NsSimManager(private val noreStone: NOREStone) {
 
+    private val simHashLock = Object()
     private val simulations = hashSetOf<NsSim>()
     private val uuidToSimulations = hashMapOf<UUID, NsSim>()
 
@@ -47,6 +45,17 @@ class NsSimManager(val noreStone: NOREStone) {
         synchronized(simMutQueueLock) { simMutQueue.add(sim to block) }
     }
 
+    /**
+     * Do not mutate sims through this method, do it synchronously using requestSimVarMutation
+     */
+    fun applyOnSimsReadOnly(block: (NsSim) -> Unit) {
+        synchronized(simHashLock) {
+            for (sim in simulations) {
+                block(sim)
+            }
+        }
+    }
+
 
     fun playerUuidSimExists(playerUuid: UUID) = playerUuid in uuidToSimulations.keys
     fun getPlayerSim(playerUuid: UUID) = uuidToSimulations[playerUuid]
@@ -55,9 +64,11 @@ class NsSimManager(val noreStone: NOREStone) {
 
     fun tryRender(): Boolean {
         if (isUpdating) return false
+        if (simulations.size == 0) return false
 
         for (sim in simulations) {
             if (!sim.shouldRender()) continue
+            //println("============== rendering sim")
             sim.render()
         }
 
@@ -77,6 +88,7 @@ class NsSimManager(val noreStone: NOREStone) {
 
         // add and remove sims as per requests
         flushAddRemoveQueue()
+        if (simulations.size == 0) return false
 
         // mutate the simulation variables
         synchronized(simMutQueueLock) {
@@ -100,9 +112,9 @@ class NsSimManager(val noreStone: NOREStone) {
         // start the timing thread which will count down how many milliseconds we can
         // tick for
         val updateTimeSpanMillis = allottedMillis
+        simsCanTick = true
         timingThread.work {
             // Make the sims tick for a certain amount of milliseconds
-            simsCanTick = true
             val timeStart = TimeSource.Monotonic.markNow()
             do {
                 val millisSinceUpdateStart = timeStart.elapsedNow().inWholeMilliseconds
@@ -113,21 +125,8 @@ class NsSimManager(val noreStone: NOREStone) {
         // start the sim ticking threads
         val updateCycleTimeOnServer = serverTimeDelta
         for (sim in simulations) {
-            val ticksToRunFor = sim.getTicksToRunFor(updateCycleTimeOnServer)
-            if (ticksToRunFor == 0L) {
-                // Early mark as done ticking
-                synchronized(simsFinishedTickingLock) {
-                    simsFinishedTicking[sim] = true
-                }
-                continue
-            }
 
-            val simThread = simThreads[sim]!!
-            var simTicksUpdated = 0
-            simThread.work {
-                sim.nodestoneSim.tickWhile {
-                    (simTicksUpdated++ < ticksToRunFor) && simsCanTick
-                }
+            fun simTickEndSequence(simTicksUpdated: Long) {
                 // Mark this sim as done ticking
                 synchronized(simsFinishedTickingLock) {
                     simsFinishedTicking[sim] = true
@@ -135,9 +134,34 @@ class NsSimManager(val noreStone: NOREStone) {
                     // If all sims are done, this thread has the responsibility of setting isUpdating
                     // to false
                     if (simsFinishedTicking.all { (_, finishedTicking) -> finishedTicking }) {
-                       isUpdating = false
+                        isUpdating = false
                     }
                 }
+                // Notify this sim for how long it ran for
+                sim.notifyRanFor(simTicksUpdated)
+            }
+
+            val ticksToRunFor = sim.getTicksToRunFor(updateCycleTimeOnServer)
+            if (ticksToRunFor == 0L) {
+                simTickEndSequence(0)
+                continue
+            }
+
+            val simThread = simThreads[sim]!!
+            var simTicksUpdated = 0L
+            simThread.work {
+                sim.nodestoneSim.tickWhile {
+                    //println("TRY TICK: SIMS CAN TICK: $simsCanTick")
+                    if (simTicksUpdated < ticksToRunFor && simsCanTick) {
+                        //println("TICKING ONCE!!")
+                        simTicksUpdated += 1
+                        return@tickWhile true
+                    } else {
+                        return@tickWhile false
+                    }
+                }
+                // We done ticking
+                simTickEndSequence(simTicksUpdated)
             }
         }
 
@@ -162,15 +186,22 @@ class NsSimManager(val noreStone: NOREStone) {
     }
 
     private fun addSim(uuid: UUID, s: NsSim) {
-        simulations.add(s)
-        uuidToSimulations[uuid] = s
-        simThreads[s] = BurstWorkThread()
+        //println("added sim for player ${Bukkit.getPlayer(uuid)!!}")
+        synchronized(simHashLock) {
+            simulations.add(s)
+            uuidToSimulations[uuid] = s
+            simThreads[s] = BurstWorkThread()
+        }
     }
     private fun removeSim(uuid: UUID, s: NsSim) {
-        s.endingSequence()
-        simulations.remove(s)
-        uuidToSimulations.remove(uuid)
-        simThreads.remove(s)
+        //println("removed sim for player ${Bukkit.getPlayer(uuid)!!}")
+
+        synchronized(simHashLock) {
+            s.endingSequence()
+            simulations.remove(s)
+            uuidToSimulations.remove(uuid)
+            simThreads.remove(s)
+        }
     }
 
 }

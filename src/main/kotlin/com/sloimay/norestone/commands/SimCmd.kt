@@ -2,9 +2,9 @@ package com.sloimay.norestone.commands
 
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
+import com.sloimay.norestone.simulation.NsSim
 import dev.jorel.commandapi.executors.CommandArguments
 import dev.jorel.commandapi.kotlindsl.*
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
@@ -31,7 +31,7 @@ class SimCmd(val noreStone: NOREStone) {
 
 
             literalArgument("desel") {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                withPermission(NsPerms.Cmd.Sim.select)
 
                 playerExecutor { p, args ->
                     val res = noreStone.playerInteract.desel(p)
@@ -45,7 +45,7 @@ class SimCmd(val noreStone: NOREStone) {
 
 
             for (alias in listOf("pos1", "1")) literalArgument(alias) {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                withPermission(NsPerms.Cmd.Sim.select)
 
                 playerExecutor { p, args ->
                     val cornerPos = p.location.blockPos()
@@ -53,14 +53,17 @@ class SimCmd(val noreStone: NOREStone) {
                     if (res.isErr()) {
                         p.nsErr(res.getErr())
                     } else {
-                        p.nsInfoSimSelSetPos(cornerPos, 0, noreStone.getSession(p).sel)
+                        val cornerChanged = res.isOk()
+                        if (cornerChanged) {
+                            p.nsInfoSimSelSetPos(cornerPos, 0, noreStone.getSession(p).sel)
+                        }
                     }
                 }
             }
 
 
             for (alias in listOf("pos2", "2")) literalArgument(alias) {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                withPermission(NsPerms.Cmd.Sim.select)
 
                 playerExecutor { p, args ->
                     val cornerPos = p.location.blockPos()
@@ -68,7 +71,10 @@ class SimCmd(val noreStone: NOREStone) {
                     if (res.isErr()) {
                         p.nsErr(res.getErr())
                     } else {
-                        p.nsInfoSimSelSetPos(cornerPos, 1, noreStone.getSession(p).sel)
+                        val cornerChanged = res.isOk()
+                        if (cornerChanged) {
+                            p.nsInfoSimSelSetPos(cornerPos, 1, noreStone.getSession(p).sel)
+                        }
                     }
                 }
             }
@@ -76,26 +82,81 @@ class SimCmd(val noreStone: NOREStone) {
 
 
             literalArgument("freeze") {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.freeze))
+                withPermission(NsPerms.Cmd.Sim.freeze)
 
-                anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("FREEZE") }
+                playerExecutor { p, args ->
+                    val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
+                    if (sim == null) {
+                        p.nsErr("No simulation currently on-going.")
+                        return@playerExecutor
+                    }
+
+                    // TODO: later down the line when warping will maybe be added,
+                    //       add a check for freezing if warping is already going
+                    //       Also use results and the NsPlayerInteraction class
+
+                    playerFeedbackRequirePerm(p, NsPerms.Simulation.freeze) {
+                        p.nsErr(it)
+                        return@playerExecutor
+                    }
+                    val newState = sim.requestFreeze()
+
+                    if (newState is NsSim.SimState.Frozen) {
+                        p.nsInfo("Froze simulation.")
+                    } else if (newState is NsSim.SimState.Running) {
+                        p.nsInfo("Simulation is now running.")
+                    }
+                }
             }
 
             literalArgument("step") {
-                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.step))
+                withPermission(NsPerms.Cmd.Sim.step)
 
-                anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("STEP") }
+                longArgument("ticks") {
+                    playerExecutor { p, args ->
+                        val ticksStepped = args["ticks"] as Long
+                        val tickStepRes = noreStone.playerInteract.tickStep(p, ticksStepped)
 
+                        if (tickStepRes.isErr()) {
+                            p.nsErr(tickStepRes.getErr())
+                        } else {
+                            p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped==1L) "" else "s"}..")
+                        }
+                    }
+                }
+            }
+
+
+            literalArgument("tps") {
+                withPermission(NsPerms.Cmd.Sim.tps)
+
+                playerExecutor { p, args ->
+                    val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
+                    if (sim == null) {
+                        p.nsErr("No simulation currently on-going.")
+                        return@playerExecutor
+                    }
+
+                    p.nsInfo("Simulation TPS: ${sim.tps} (target), (N/A) (achieved).")
+                }
+
+                doubleArgument("new_tps") {
+                    playerExecutor { p, args ->
+                        val newTps = args["new_tps"] as Double
+                        val changeSimTpsRes = noreStone.playerInteract.changeSimTps(p, newTps)
+
+                        if (changeSimTpsRes.isErr()) {
+                            p.nsErr(changeSimTpsRes.getErr())
+                        } else {
+                            p.nsInfo("Simulation TPS set to $newTps.")
+                        }
+                    }
+                }
             }
 
 
             literalArgument("compile") {
                 withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.compile))
-
-                //TODO: compile cmd
-
-                anyExecutor { commandSender, commandArguments -> Bukkit.broadcastMessage("COMPILE") }
-
 
                 for (bi in RS_BACKEND_INFO) {
                     literalArgument(bi.backendId) {
@@ -114,21 +175,25 @@ class SimCmd(val noreStone: NOREStone) {
 
                                 val flags = flagParseResult.getOk()
                                 val compileResult =
-                                    noreStone.playerInteract.compileSim(p, bi.backendId, flags, true)
+                                    noreStone.playerInteract.compileSim(p, bi.backendId, flags)
                                 if (compileResult.isErr()) {
                                     p.nsErr(compileResult.getErr())
                                     return@playerExecutor
                                 }
+
+                                p.nsInfo("Backend successfully compiled in ${compileResult.getOk()}.")
                             }
                         }
 
                         // Compile without compile flags
                         playerExecutor { p, args ->
-                            val compileResult = noreStone.playerInteract.compileSim(p, bi.backendId, listOf(), true)
+                            val compileResult = noreStone.playerInteract.compileSim(p, bi.backendId, listOf())
                             if (compileResult.isErr()) {
                                 p.nsErr(compileResult.getErr())
                                 return@playerExecutor
                             }
+
+                            p.nsInfo("Backend successfully compiled in ${compileResult.getOk()}.")
                         }
                     }
                 }
@@ -145,6 +210,7 @@ class SimCmd(val noreStone: NOREStone) {
                     noreStone.simManager.getPlayerSim(p.uniqueId)?.let {
                         noreStone.simManager.requestSimRemove(p.uniqueId, it)
                     }
+                    p.nsInfo("Simulation cleared.")
                 }
             }
 

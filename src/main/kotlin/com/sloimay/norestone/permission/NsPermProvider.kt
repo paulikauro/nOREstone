@@ -43,7 +43,7 @@ class NsPermProvider(val noreStone: NOREStone) {
         val perms = mutableListOf<String>()
         getPermsOfObj(NsPerms::class, perms)
         perms.forEach {
-            println("Registering perm: ${it}")
+            //println("Registering perm: ${it}")
             perm(it)
         }
     }

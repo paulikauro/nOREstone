@@ -1,14 +1,21 @@
 package com.sloimay.norestone.simulation
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldedit.util.SideEffect
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.mcvolume.block.BlockState
+import com.sloimay.nodestonecore.backends.PositionedRsSimInput
 import com.sloimay.nodestonecore.backends.RedstoneSimBackend
-import com.sloimay.norestone.NOREStone
+import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
+import com.sloimay.nodestonecore.backends.shrimple.ShrimpleInput
+import com.sloimay.norestone.*
 import com.sloimay.norestone.selection.SimSelection
-import com.sloimay.norestone.toBlockVector3
+import com.sloimay.smath.abs
 import com.sloimay.smath.floor
 import com.sloimay.smath.vectors.IVec3
+import org.bukkit.Bukkit
+import org.bukkit.Material
+import kotlin.math.min
 
 
 private typealias WeBlockState = com.sk89q.worldedit.world.block.BlockState
@@ -24,35 +31,94 @@ class NsSim(
     val nodestoneSim: RedstoneSimBackend,
     val simWorldOrigin: IVec3,
 
-    tps: Int,
+    tps: Double,
 ) {
-    var tps: Int = tps
+    var tps: Double = tps
         private set
 
     private var state: SimState
-
     private val weBlockStateCache = hashMapOf<BlockState, WeBlockState>()
-
+    val positionedInputs = hashMapOf<IVec3, PositionedRsSimInput>()
 
 
     init {
         require(sel.isComplete()) { "Nodestone simulation selection has to be complete." }
 
         state = SimState.Running(this)
+
+        if (nodestoneSim is ShrimpleBackend) {
+            (nodestoneSim.getInputs() as List<ShrimpleInput>).forEach { positionedInputs[it.pos] = it }
+        }
     }
 
 
-    fun requestTpsChange(newTickRate: Int) {
+    fun requestTpsChange(newTickRate: Double) {
+        if (newTickRate < 0.0) error("Tick rate cannot be negative")
+        if (newTickRate.abs() == 0.0) error("Tick rate cannot be 0.0")
         noreStone.simManager.requestSimVarMutation(this) { it.tps = newTickRate }
     }
 
+    /**
+     * Will overwrite the current stepping ticks if there are any
+     */
+    fun requestStep(tickCount: Long) {
+        if (tickCount == 0L) error("Cannot step for 0 ticks.")
+        if (tickCount < 0L) error("Cannot step for a negative amount of ticks.")
+        val s = state
+        if (!isFrozen()) error("Can only step while the simulation frozen.")
+
+        noreStone.simManager.requestSimVarMutation(this) { (s as SimState.Frozen).step(tickCount) }
+    }
+
+    fun requestFreeze(): SimState {
+        val newState = when (state) {
+            is SimState.Frozen -> SimState.Running(this)
+            is SimState.Running -> SimState.Frozen(this)
+            else -> error("Unreachable")
+        }
+
+        noreStone.simManager.requestSimVarMutation(this) { it.state = newState }
+
+        return newState
+    }
+
+
+    fun isFrozen() = state is SimState.Frozen
 
 
 
 
 
     fun endingSequence() {
-        //
+
+
+        if (nodestoneSim is ShrimpleBackend) {
+            // This backend, like most, leaves the blocks rendered in a limbo state, as
+            // it doesn't carry over the scheduled ticks
+            // This is an attempt at updating those blocks after the simulation was deleted
+            // so the redstone is updated. It doesn't work and I have no idea how to make
+            // it work lol
+            /*noreStone.server.scheduler.runTaskLater(noreStone,
+                Runnable {
+                    val sideEffects = SideEffectSet.none()
+                        .with(SideEffect.UPDATE, SideEffect.State.ON)
+                        .with(SideEffect.NEIGHBORS, SideEffect.State.ON)
+                        .with(SideEffect.VALIDATION, SideEffect.State.ON)
+                    val simBounds = sel.bounds()!!
+                    val world = sel.world!!
+                    val weWorld = BukkitAdapter.adapt(world)
+                    for (pos in simBounds.iterYzx()) {
+                        val block = world.getBlockAt(pos.x, pos.y, pos.z)
+                        if (block.type == Material.AIR) continue
+                        if (block.type !in SHRIMPLE_SIM_END_MATS_TO_UPDATE) continue
+                        val posBv3 = pos.toBlockVector3()
+                        weWorld.setBlock(posBv3, weWorld.getBlock(posBv3), sideEffects)
+                        //block.state.update(true, true)
+                    }
+                },
+                20
+            )*/
+        }
     }
 
 
@@ -65,11 +131,12 @@ class NsSim(
 
     fun render() {
         val weWorld = BukkitAdapter.adapt(sel.world!!)
-        nodestoneSim.updateRepr { localPos, newBlockState ->
+        nodestoneSim.updateRepr(updateVolume = false, onlyNecessaryVisualUpdates = true) { localPos, newBlockState ->
             val worldPos = local2World(localPos)
             val weBlockState = weBlockStateCache.computeIfAbsent(newBlockState) {
                 BukkitAdapter.adapt( noreStone.server.createBlockData(it.stateStr) )
             }
+            //println("rendering block at $worldPos")
             weWorld.setBlock(worldPos.toBlockVector3(), weBlockState, SideEffectSet.none())
         }
     }
@@ -94,12 +161,17 @@ class NsSim(
 
 
 
-    private abstract class SimState(val sim: NsSim) {
+    abstract class SimState(val sim: NsSim) {
+        protected val stateTimePrecision = 128
 
+
+        /**
+         * Like the running state but it stalls if we don't have any ticks to step through left
+         */
         class Frozen(sim: NsSim) : SimState(sim) {
-            var isStepping = false
+            var stepTicksLeft = 0L
 
-            var simTime = 0.0 // one unit is one tick
+            var stateTime = 0.0 // one unit is one tick
 
             var idealTickCountThisUpdate = 0L
             var timeToAddIfIdealTickCountIsReached = 0.0
@@ -108,12 +180,17 @@ class NsSim(
 
             // Called at the start of an update cycle
             override fun getTicksToRunFor(upcomingDeltaSeconds: Double): Long {
-                if (!isStepping) return 0
+                if (stepTicksLeft <= 0) return 0
 
                 val deltaTicks = serverSecondsToSimTicks(upcomingDeltaSeconds)
-                val deltaTimestamp = simTime + deltaTicks
+                val deltaTimestamp = stateTime + deltaTicks
 
-                val ticksToRun = (deltaTimestamp.floor()).toLong() - (simTime.floor()).toLong()
+                // Don't run for longer than the amount of ticks we have left
+                // to step through
+                val ticksToRun = min(
+                    (deltaTimestamp.floor()).toLong() - (stateTime.floor()).toLong(),
+                    stepTicksLeft,
+                )
                 idealTickCountThisUpdate = ticksToRun
                 timeToAddIfIdealTickCountIsReached = deltaTicks
                 return ticksToRun
@@ -121,15 +198,17 @@ class NsSim(
 
             // Called at the end of an update cycle
             override fun notifyRanFor(ticks: Long) {
-                if (!isStepping) return
+                lastUpdateCycleTickCount = ticks
+                if (stepTicksLeft <= 0) return
 
                 if (ticks == idealTickCountThisUpdate) {
-                    simTime += timeToAddIfIdealTickCountIsReached
+                    stateTime += timeToAddIfIdealTickCountIsReached
                 } else {
-                    simTime += ticks.toDouble()
+                    stateTime += ticks.toDouble()
                 }
+                stateTime = stateTime.round(stateTimePrecision) // Hopefully mitigates floating point errors
 
-                lastUpdateCycleTickCount = ticks
+                stepTicksLeft -= ticks
             }
 
             private var hasAlreadyCalledShouldRender = false
@@ -142,10 +221,17 @@ class NsSim(
 
                 return lastUpdateCycleTickCount > 0
             }
+
+            fun step(tickCount: Long) {
+                stepTicksLeft = tickCount
+            }
         }
 
+
+
+
         class Running(sim: NsSim) : SimState(sim) {
-            var simTime = 0.0 // one unit is one tick
+            var stateTime = 0.0 // one unit is one tick
 
             var idealTickCountThisUpdate = 0L
             var timeToAddIfIdealTickCountIsReached = 0.0
@@ -154,22 +240,40 @@ class NsSim(
 
             // Called at the start of an update cycle
             override fun getTicksToRunFor(upcomingDeltaSeconds: Double): Long {
+                //println("=====")
+                //println("sim time: $stateTime")
                 val deltaTicks = serverSecondsToSimTicks(upcomingDeltaSeconds)
-                val deltaTimestamp = simTime + deltaTicks
+                val deltaTimestamp = stateTime + deltaTicks
 
-                val ticksToRun = (deltaTimestamp.floor()).toLong() - (simTime.floor()).toLong()
+                val ticksToRun = (deltaTimestamp.floor()).toLong() - (stateTime.floor()).toLong()
                 idealTickCountThisUpdate = ticksToRun
                 timeToAddIfIdealTickCountIsReached = deltaTicks
+
+                //println("ticks to run: $ticksToRun")
+                //println("ideal: $idealTickCountThisUpdate")
+                //println("time to add if ideal: $timeToAddIfIdealTickCountIsReached")
+
+                //println("sim time: $stateTime")
+                //println("delta timestamp: $deltaTimestamp")
+
                 return ticksToRun
             }
 
             // Called at the end of an update cycle
             override fun notifyRanFor(ticks: Long) {
+                //println("notified ran for:")
+                //if (ticks == 0L) {
+                //    Bukkit.broadcastMessage("RAN FOR 0 TICKS")
+                //}
+                //println("ideal tick count: $idealTickCountThisUpdate")
+                //println("actual amount of ticks we ran for: $ticks")
                 if (ticks == idealTickCountThisUpdate) {
-                    simTime += timeToAddIfIdealTickCountIsReached
+                    stateTime += timeToAddIfIdealTickCountIsReached
                 } else {
-                    simTime += ticks.toDouble()
+                    stateTime += ticks.toDouble()
                 }
+                stateTime = stateTime.round(stateTimePrecision) // Hopefully mitigates floating point errors
+                //println("new sim time: $stateTime")
 
                 lastUpdateCycleTickCount = ticks
             }

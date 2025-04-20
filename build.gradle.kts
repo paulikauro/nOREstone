@@ -5,9 +5,13 @@ plugins {
 }
 
 group = "com.sloimay"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
+    // debug
+    mavenLocal()
+
+
     mavenCentral()
     maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/") {
         name = "spigotmc-repo"
@@ -36,10 +40,11 @@ dependencies {
     implementation("dev.jorel:commandapi-bukkit-kotlin:9.7.0")
 
     // Nodestone
-    implementation("com.github.sloimayyy:nodestone:1.0.4")
+    implementation("com.github.sloimayyy:nodestone:1.0.6")
+    //implementation("com.sloimay:nodestone:1.0.6") // dev dep
     implementation("com.google.code.gson:gson:2.13.0")
     implementation("com.github.sloimayyy:smath:1.1.2")
-    implementation("com.github.sloimayyy:mcvolume:1.0.9")
+    implementation("com.github.sloimayyy:mcvolume:1.0.13")
 
     // Plot squared
     //implementation(platform("com.intellectualsites.bom:bom-newest:1.52"))

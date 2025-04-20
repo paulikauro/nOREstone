@@ -14,7 +14,8 @@ object RS_BACKENDS {
         "Shrimple",
         "Simple single threaded MCHPRS-like backend.",
         listOf(
-            CompileFlag("io-only", "Only visually update IO blocks.")
+            CompileFlag("io-only", "Only visually update IO blocks."),
+            CompileFlag("no-wire-rendering", "Don't visually update redstone wires (automatically disabled in io-only)"),
         )
     )
 }
@@ -33,3 +34,70 @@ object DEBUG {
     val PLOT_ITERATION = false
     val NBTAPI_TO_QUERZ = false
 }
+
+
+
+
+val PRESSURE_PLATE_MATS = arrayOf(
+    Material.STONE_PRESSURE_PLATE,
+    Material.OAK_PRESSURE_PLATE,
+    Material.BIRCH_PRESSURE_PLATE,
+    Material.SPRUCE_PRESSURE_PLATE,
+    Material.JUNGLE_PRESSURE_PLATE,
+    Material.ACACIA_PRESSURE_PLATE,
+    Material.DARK_OAK_PRESSURE_PLATE,
+    Material.WARPED_PRESSURE_PLATE,
+    Material.CRIMSON_PRESSURE_PLATE,
+    Material.BAMBOO_PRESSURE_PLATE,
+    Material.CHERRY_PRESSURE_PLATE,
+    Material.MANGROVE_PRESSURE_PLATE,
+    Material.POLISHED_BLACKSTONE_PRESSURE_PLATE,
+    Material.HEAVY_WEIGHTED_PRESSURE_PLATE,
+    Material.LIGHT_WEIGHTED_PRESSURE_PLATE,
+)
+
+val WOODEN_BUTTON_MATS = arrayOf(
+    Material.OAK_BUTTON,
+    Material.BIRCH_BUTTON,
+    Material.SPRUCE_BUTTON,
+    Material.JUNGLE_BUTTON,
+    Material.ACACIA_BUTTON,
+    Material.DARK_OAK_BUTTON,
+    Material.WARPED_BUTTON,
+    Material.CRIMSON_BUTTON,
+    Material.BAMBOO_BUTTON,
+    Material.CHERRY_BUTTON,
+    Material.MANGROVE_BUTTON,
+)
+
+val STONE_BUTTON_MATS = arrayOf(
+    Material.STONE_BUTTON,
+    Material.POLISHED_BLACKSTONE_BUTTON,
+)
+
+val BUTTON_MATS = arrayOf(
+    *WOODEN_BUTTON_MATS,
+    *STONE_BUTTON_MATS,
+)
+
+
+/**
+ * Materials of user input blocks
+ */
+val INPUT_MATERIALS = arrayOf(
+    Material.LEVER,
+    *BUTTON_MATS,
+    *PRESSURE_PLATE_MATS,
+)
+
+
+
+
+
+val SHRIMPLE_SIM_END_MATS_TO_UPDATE = arrayOf(
+    Material.REPEATER,
+    Material.COMPARATOR,
+    Material.REDSTONE_LAMP,
+    Material.REDSTONE_TORCH,
+    Material.REDSTONE_WALL_TORCH,
+)

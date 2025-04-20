@@ -15,6 +15,7 @@ object NsPerms { // NorestonePerms
             val step = "$sim.step"
             val compile = "$sim.compile"
             val selWand = "$sim.selwand"
+            val tps = "$sim.tps"
             val backends = "$sim.backends"
             object Compile {
                 private val backendAccess = "$compile.backendaccess"
@@ -34,6 +35,9 @@ object NsPerms { // NorestonePerms
             val bypass = "$maxTps.bypass"
         }
         val compile = "$simulation.compile"
+        val step = "$simulation.step"
+        val freeze = "$simulation.freeze"
+        val changeTps = "$simulation.changetps"
         private val selection = "$simulation.selection"
         object Selection {
             val select = "$selection.select"

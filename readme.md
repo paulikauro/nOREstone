@@ -19,6 +19,7 @@ Notes:
 - `norestone.cmd.sim.compile`: "/sim compile", "/sim clear"
 - `norestone.cmd.sim.compile.backendaccess.<backendId>`: "/sim compile <backendId>"
 - `norestone.cmd.sim.selwand`: "/sim selwand"
+- `norestone.cmd.sim.tps`: "/sim tps"
 
 Disclaimer: command permissions are separate from the underlying mechanism they allow.
 Example: granting access to "/sim compile" does not necessarily allow you to compile, it only
@@ -30,6 +31,9 @@ allows you to run the command.
 - `norestone.simulation.selection.select.bypass`: Ability to select everywhere
 - `norestone.simulation.selection.changeselwand`: Ability to change the player's selelection wand
 - `norestone.simulation.compile`: Ability to compile/clear
+- `norestone.simulation.step`: Ability to step
+- `norestone.simulation.freeze`: Ability to freeze
+- `norestone.simulation.changetps`: Ability to change the tps
 
 #### Number permissions:
 - `norestone.simulation.maxtps.<int>`:

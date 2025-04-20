@@ -2,6 +2,9 @@ package com.sloimay.norestone
 
 import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.mcvolume.McVolume
+import com.sloimay.mcvolume.io.SchemVersion
+import com.sloimay.mcvolume.io.exportToSchem
+import com.sloimay.mcvolume.utils.McVersion
 import com.sloimay.nodestonecore.backends.RedstoneSimBackend
 import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.permission.NsPerms
@@ -12,10 +15,11 @@ import de.tr7zw.nbtapi.NBT
 import de.tr7zw.nbtapi.NBTCompound
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
-import org.bukkit.ChunkSnapshot
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import kotlin.math.abs
+import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 class NsPlayerInteractions(val noreStone: NOREStone) {
@@ -23,7 +27,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
     /**
      * Setting selection corners should only happen in this method!!
      */
-    fun setSimSelCorner(player: Player, newCorner: IVec3, cornerIdx: Int): Result<Unit, String> {
+    fun setSimSelCorner(player: Player, newCorner: IVec3, cornerIdx: Int): Result<Boolean, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return Result.err(it) }
 
         val sesh = noreStone.getSession(player)
@@ -42,7 +46,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         // If we're setting the same corner, don't do anything
         val oldCorner = sesh.sel[cornerIdx]
         if (oldCorner == newCorner) {
-            return Result.ok(Unit)
+            return Result.ok(false)
         }
 
         // # Attempt a new selection
@@ -54,12 +58,12 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         // Spatial change validation
         val spatialChangeValidationRes =
             noreStone.simSelValidator.validateForSimSpatialChange(player, newSelAttempt)
-        if (spatialChangeValidationRes.isErr()) return spatialChangeValidationRes
+        if (spatialChangeValidationRes.isErr()) return Result.err(spatialChangeValidationRes.getErr())
 
         // New selection attempt success
         sesh.sel = newSelAttempt
 
-        return Result.ok(Unit)
+        return Result.ok(true)
     }
 
     fun desel(player: Player): Result<Unit, String> {
@@ -86,10 +90,10 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
     }
 
     /**
-     * If result is err, that means the synced part of the compilation wasn't successful.
-     * Async results are logged later
+     * I tried to make it asynchronous but couldn't figure out how.
+     * Chunk Snapshots are very bad for this instance; if anyone has any idea then please do tell lol
      */
-    fun compileSim(player: Player, backendId: String, compileFlags: List<String>, asyncLogToPlayer: Boolean): Result<Unit, String> {
+    fun compileSim(player: Player, backendId: String, compileFlags: List<String>): Result<Duration, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return Result.err(it) }
         if (noreStone.doesPlayerSimExists(player)) {
             return Result.err("A simulation is still active, please clear it before trying to" +
@@ -112,93 +116,130 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         // The origin of the simulation inside the standalone mcvolume is at 0,0
         val volBounds = simWorldBounds.move(-simWorldBounds.a)
 
-        // # Get chunk snapshots for async block access
-        // 2d array of chunk snapshots
-        val chunkGridWBounds = IntBoundary.new(
-            simWorldBounds.a.withY(0) shr 4,
-            ((simWorldBounds.b + 1) shr 4).withY(1)
-        )
-        println("sim world bounds $simWorldBounds")
-        println("chunk grid world bounds $chunkGridWBounds")
-        val chunkSnaps = mutableListOf<ChunkSnapshot>()
-        for (chunkPos in chunkGridWBounds.iterYzx()) {
-            val wp = chunkPos shl 4
-            val c = simWorld
-                .getChunkAt(wp.x, wp.z, true)
-                .getChunkSnapshot(true, false, false)
-            println("got chunk snap at $wp")
-            chunkSnaps.add(c)
-        }
 
-        // # Get NBT on the main thread (can't access nbt from chunk snapshots
-        // TODO: when im sure the simulations are working, set chunk bit size to 4
-        val t = TimeSource.Monotonic.markNow()
-        val vol = McVolume.new(volBounds.a, volBounds.b, chunkBitSize = 5)
-        for (chunkPos in chunkGridWBounds.iterYzx()) {
-            val wp = chunkPos shl 4
-            val chunkHere = simWorld.getChunkAt(wp.x, wp.z, true)
-            for (teBukkitBs in chunkHere.tileEntities) {
-                val teWorldPos = teBukkitBs.location.blockPos()
-                if (!simWorldBounds.posInside(teWorldPos)) continue
+        // # Instantiate vol
+        val vol = McVolume.new(volBounds.a, volBounds.b, chunkBitSize = 4)
 
-                // Transfer NBT to the mcvolume
-                NBT.get(teBukkitBs) { nbt ->
-                    val teVolPos = teWorldPos - simWorldBounds.a
-                    val querzNbt = nbtApiToQuerzNbt(nbt as NBTCompound)
-                    vol.setTileData(teVolPos, querzNbt)
-                }
-            }
-        }
-        println("getting nbt time: ${t.elapsedNow()}")
-
-
-        noreStone.server.scheduler.runTaskAsynchronously(noreStone, Runnable {
-
+        // # Get blocks
+        // TODO: optimisation idea:
+        //         BFS over non-air blocks (tho idk how to make it substantially faster than just brute force)
+        run {
             for (worldPos in simWorldBounds.iterYzx()) {
-                val chunkPos = worldPos shr 4
-                val chunkSnapshot = chunkSnaps[chunkGridWBounds.posToYzxIdx(chunkPos)]
-                val blockType = chunkSnapshot.getBlockType(worldPos.x, worldPos.y, worldPos.z)
-                if (blockType == Material.AIR) continue
-
-                val blockData = chunkSnapshot.getBlockData(worldPos.x, worldPos.y, worldPos.z)
+                val block = simWorld.getBlockAt(worldPos.x, worldPos.y, worldPos.z)
+                if (block.type == Material.AIR) continue
 
                 // Place block state
                 val volPos = worldPos - simWorldBounds.a
-                vol.setBlockStateStr(volPos, blockData.asString)
+                vol.setBlockStateStr(volPos, block.blockData.asString)
             }
+        }
 
-            // Make the backend, do it differently depending on which one it is
-            // The end goal for nodestone is to have a unified interface that removes the burden on the plugin
-            // (or mod, or separate app) developer of implementing different compilation / interaction
-            // logic for each simulation
-            val backendInfo = RS_BACKEND_INFO.first { it.backendId == backendId }
-            val rsBackend: RedstoneSimBackend
+        // # Get tile entities
+        run {
+            val chunkGridWBounds = IntBoundary.new(
+                simWorldBounds.a.withY(0) shr 4,
+                ((simWorldBounds.b + 1) shr 4).withY(1)
+            )
+            for (chunkPos in chunkGridWBounds.iterYzx()) {
+                val wp = chunkPos shl 4
+                val chunkHere = simWorld.getChunkAt(wp.x, wp.z, true)
+                for (teBukkitBs in chunkHere.tileEntities) {
+                    val teWorldPos = teBukkitBs.location.blockPos()
+                    if (!simWorldBounds.posInside(teWorldPos)) continue
 
-            if (backendInfo.backendId == RS_BACKENDS.shrimple.backendId) {
-                // Shrimple compilation
-                rsBackend = ShrimpleBackend.new(vol, volBounds, compileFlags)
-            } else {
-                if (asyncLogToPlayer) {
-                    noreStone.syncedWorker.addWork {
-                        player.nsErr("Unknown backend of id '${backendId}'.")
+                    // Transfer NBT to the mcvolume
+                    NBT.get(teBukkitBs) { nbt ->
+                        val teVolPos = teWorldPos - simWorldBounds.a
+                        val querzNbt = nbtApiToQuerzNbt(nbt as NBTCompound)
+                        vol.setTileData(teVolPos, querzNbt)
                     }
                 }
-                return@Runnable
             }
+        }
 
-            // Make a new NsSim
-            val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, 20)
 
-            // Add it to the manager
-            noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)
+        // Make the backend, do it differently depending on which one it is
+        // The end goal for nodestone is to have a unified interface that removes the burden on the plugin
+        // (or mod, or separate app) developer of implementing different compilation / interaction
+        // logic for each simulation
+        val backendInfo = RS_BACKEND_INFO.first { it.backendId == backendId }
+        val rsBackend: RedstoneSimBackend
 
-            if (asyncLogToPlayer) {
-                val compileTime = compileStartTime.elapsedNow()
-                player.nsInfo("Backend successfully compiled in $compileTime.")
-            }
-        })
+        if (backendInfo.backendId == RS_BACKENDS.shrimple.backendId) {
+            // Shrimple compilation
+            // TODO: this could be made async
+            rsBackend = ShrimpleBackend.new(vol, volBounds, compileFlags)
+        } else {
+            return Result.err("Unknown backend of id '${backendId}'.")
+        }
+
+        vol.exportToSchem(
+            noreStone.dataFolder.resolve("hello.schem").absolutePath,
+            McVersion.JE_1_20_4,
+            SchemVersion.VERSION_2,
+        )
+
+        // Make a new NsSim
+        val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, 20.0)
+
+        // Request addition of this sim
+        noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)
 
         // Just means the synced code was successful
+        return Result.ok(compileStartTime.elapsedNow())
+    }
+
+
+    fun changeSimTps(p: Player, newTps: Double): Result<Unit, String> {
+        playerFeedbackRequirePerm(p, NsPerms.Simulation.changeTps) { return Result.err(it) }
+
+        val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
+        if (sim == null) {
+            return Result.err("No simulation currently on-going.")
+        }
+
+        if (newTps < 0.0) {
+            return Result.err("TPS cannot be negative.")
+        }
+        if (abs(newTps) == 0.0) {
+            return Result.err("TPS cannot be 0.")
+        }
+
+        val maxSimTps = noreStone.getPlayerMaxSimTps(p).toDouble()
+        // Bypass of max tps
+        if (!p.hasPermission(NsPerms.Simulation.MaxTps.bypass)) {
+            if (newTps > maxSimTps) {
+                return Result.err("Your permissions do not permit you to go over $maxSimTps TPS.")
+            }
+        }
+
+        sim.requestTpsChange(newTps)
+        return Result.ok()
+    }
+
+
+    fun tickStep(p: Player, ticksStepped: Long): Result<Unit, String> {
+        playerFeedbackRequirePerm(p, NsPerms.Simulation.step) { return Result.err(it) }
+
+        val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
+        if (sim == null) {
+            return Result.err("No simulation currently on-going.")
+        }
+
+        if (!sim.isFrozen()) {
+            return Result.err("Cannot step while the simulation isn't frozen.")
+
+        }
+
+        if (ticksStepped < 0L) {
+            return Result.err("Cannot step for a negative amount of ticks.")
+        }
+        if (ticksStepped == 0L) {
+            return Result.err("Cannot step for 0 ticks.")
+        }
+
+        sim.requestStep(ticksStepped)
+
         return Result.ok()
     }
 

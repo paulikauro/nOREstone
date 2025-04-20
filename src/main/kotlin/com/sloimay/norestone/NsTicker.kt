@@ -7,10 +7,16 @@ class NsTicker(val noreStone: NOREStone) : Runnable {
 
         noreStone.syncedWorker.flushWork()
 
-        //noreStone.simManager.tryRender()
+
+
+        noreStone.simManager.tryRender()
         // Possible bug if isUpdating is true when we call tryRender() but becomes false when we call tryUpdateCycle()
         // It's very very rare, and will delay rendering of a simulation by at most 1 tick probabilistically
-        //noreStone.simManager.tryUpdateCycle(40 /* will be dynamic */, 0.05 /* a game tick */)
+        noreStone.simManager.tryUpdateCycle(40 /* will be dynamic */, 0.05 /* a game tick */)
+
+
+
+        tickCount += 1
 
     }
 
