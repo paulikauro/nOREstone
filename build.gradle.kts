@@ -32,6 +32,12 @@ repositories {
 }
 
 dependencies {
+
+    /**
+     * If someone knows more about how to manage dependencies efficiently, please
+     * feel free to send a pull request XD
+     */
+
     compileOnly("org.spigotmc:spigot-api:1.20.4-R0.1-SNAPSHOT")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
