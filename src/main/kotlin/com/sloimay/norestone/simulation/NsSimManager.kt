@@ -2,13 +2,21 @@ package com.sloimay.norestone.simulation
 
 import com.sloimay.norestone.BurstWorkThread
 import com.sloimay.norestone.NOREStone
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
 import java.util.*
 import kotlin.time.TimeSource
 
 
-class NsSimManager(private val noreStone: NOREStone) {
+
+
+data class TpsAnalysis(val oneSecond: Double, val tenSeconds: Double, val oneMinute: Double)
+
+
+
+class NsSimManager(
+    private val noreStone: NOREStone,
+    val updateHz: Int,
+) {
+    val tpsMonitoringMaxSampleCount = 60
 
     private val simHashLock = Object()
     private val simulations = hashSetOf<NsSim>()
@@ -60,6 +68,16 @@ class NsSimManager(private val noreStone: NOREStone) {
     fun playerUuidSimExists(playerUuid: UUID) = playerUuid in uuidToSimulations.keys
     fun getPlayerSim(playerUuid: UUID) = uuidToSimulations[playerUuid]
 
+    fun getSimTpsAnalysis(sim: NsSim): TpsAnalysis {
+        return synchronized(sim.tpsTrackingLock) {
+            TpsAnalysis(
+                sim.tpsTracker.getWindowAvg(1),
+                sim.tpsTracker.getWindowAvg(10),
+                sim.tpsTracker.getWindowAvg(60),
+            )
+        }
+    }
+
 
 
     fun tryRender(): Boolean {
@@ -81,7 +99,7 @@ class NsSimManager(private val noreStone: NOREStone) {
      * Called from the main thread (the ticking runnable) after the rendering
      * was done
      */
-    fun tryUpdateCycle(allottedMillis: Long, serverTimeDelta: Double): Boolean {
+    fun tryUpdateCycle(allottedMillis: Long): Boolean {
         // Don't update if we're still updating (unlikely but if the sims are
         // beefy it can happen that it spills over one server tick)
         if (isUpdating) return false
@@ -123,22 +141,37 @@ class NsSimManager(private val noreStone: NOREStone) {
         }
 
         // start the sim ticking threads
+        val serverTimeDelta = 1.0 / updateHz.toDouble()
         val updateCycleTimeOnServer = serverTimeDelta
         for (sim in simulations) {
 
             fun simTickEndSequence(simTicksUpdated: Long) {
+                // May call this function from the main thread or a worker thread,
+                // however it's thread safe so we g
+
                 // Mark this sim as done ticking
                 synchronized(simsFinishedTickingLock) {
                     simsFinishedTicking[sim] = true
 
                     // If all sims are done, this thread has the responsibility of setting isUpdating
                     // to false
-                    if (simsFinishedTicking.all { (_, finishedTicking) -> finishedTicking }) {
+                    if ( simsFinishedTicking.all {(_, finishedTicking) -> finishedTicking} ) {
                         isUpdating = false
                     }
                 }
                 // Notify this sim for how long it ran for
                 sim.notifyRanFor(simTicksUpdated)
+
+                // Do tps monitoring
+                synchronized(sim.tpsTrackingLock) {
+                    sim.updateCycleCountLifetime += 1
+                    val idxInBuf = (sim.updateCycleCountLifetime % updateHz.toLong()).toInt()
+                    sim.sampleBuf[idxInBuf] = simTicksUpdated
+                    if (idxInBuf == 0) {
+                        val ticksLastSecond = sim.sampleBuf.sumOf { it.toDouble() }
+                        sim.tpsTracker.addSample(ticksLastSecond)
+                    }
+                }
             }
 
             val ticksToRunFor = sim.getTicksToRunFor(updateCycleTimeOnServer)

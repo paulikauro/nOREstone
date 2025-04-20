@@ -2,9 +2,6 @@ package com.sloimay.norestone
 
 import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.mcvolume.McVolume
-import com.sloimay.mcvolume.io.SchemVersion
-import com.sloimay.mcvolume.io.exportToSchem
-import com.sloimay.mcvolume.utils.McVersion
 import com.sloimay.nodestonecore.backends.RedstoneSimBackend
 import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.permission.NsPerms
@@ -96,7 +93,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
     fun compileSim(player: Player, backendId: String, compileFlags: List<String>): Result<Duration, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return Result.err(it) }
         if (noreStone.doesPlayerSimExists(player)) {
-            return Result.err("A simulation is still active, please clear it before trying to" +
+            return Result.err("Your simulation is still active, please clear it before trying to" +
                     " compile a new one.")
         }
 
@@ -173,14 +170,8 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
             return Result.err("Unknown backend of id '${backendId}'.")
         }
 
-        vol.exportToSchem(
-            noreStone.dataFolder.resolve("hello.schem").absolutePath,
-            McVersion.JE_1_20_4,
-            SchemVersion.VERSION_2,
-        )
-
         // Make a new NsSim
-        val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, 20.0)
+        val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, noreStone.simManager, 20.0)
 
         // Request addition of this sim
         noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)

@@ -31,6 +31,8 @@ class NsSim(
     val nodestoneSim: RedstoneSimBackend,
     val simWorldOrigin: IVec3,
 
+    val simManager: NsSimManager,
+
     tps: Double,
 ) {
     var tps: Double = tps
@@ -39,6 +41,14 @@ class NsSim(
     private var state: SimState
     private val weBlockStateCache = hashMapOf<BlockState, WeBlockState>()
     val positionedInputs = hashMapOf<IVec3, PositionedRsSimInput>()
+
+    // == Managed by the ns sim manager
+    // The samples over the last second
+    val tpsTrackingLock = Object()
+    val sampleBuf = LongArray(simManager.updateHz)
+    val tpsTracker = RollingSampleAnalyser(simManager.tpsMonitoringMaxSampleCount)
+    var updateCycleCountLifetime = 0L
+    // ==
 
 
     init {
@@ -162,7 +172,7 @@ class NsSim(
 
 
     abstract class SimState(val sim: NsSim) {
-        protected val stateTimePrecision = 128
+        protected val stateTimePrecision = 1024
 
 
         /**

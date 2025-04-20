@@ -40,7 +40,7 @@ class NOREStone : JavaPlugin() {
 
     val playerInteract = NsPlayerInteractions(this)
 
-    val simManager = NsSimManager(this)
+    val simManager = NsSimManager(this, 20)
 
     val syncedWorker = SyncedWorker()
 

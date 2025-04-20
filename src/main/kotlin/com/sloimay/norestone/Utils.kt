@@ -18,7 +18,10 @@ import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.entity.Player
+import java.util.*
 import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.round
 
 
@@ -179,6 +182,8 @@ fun IVec3.toPsqLoc(w: World) = toLoc(w).toPlotSquaredLoc()
 fun IVec3.eProdLong() = x.toLong() * y.toLong() * z.toLong()
 fun IVec3.Companion.fromBlock(b: Block) = ivec3(b.x, b.y, b.z)
 
+fun Long.clamp(lo: Long, hi: Long) = max(min(this, hi), lo)
+fun Int.clamp(lo: Int, hi: Int) = max(min(this, hi), lo)
 
 fun Boolean.toInt() = if (this) 1 else 0
 
@@ -201,6 +206,15 @@ fun CuboidRegion.toIntBounds() = IntBoundary.new(minimumPoint.toIVec3(), maximum
 
 fun mmComp(miniMsg: String): Component {
     return MiniMessage.miniMessage().deserialize(miniMsg)
+}
+
+fun formatTps(tps: Double): String {
+    val s = if (tps <= 100.0) {
+        "%.2f".format(Locale.ENGLISH, tps)
+    } else {
+        "%.1f".format(Locale.ENGLISH, tps)
+    }
+    return s.trimEnd('0').removeSuffix(".")
 }
 
 

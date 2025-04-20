@@ -137,7 +137,12 @@ class SimCmd(val noreStone: NOREStone) {
                         return@playerExecutor
                     }
 
-                    p.nsInfo("Simulation TPS: ${sim.tps} (target), (N/A) (achieved).")
+                    val tpsAnalysis = noreStone.simManager.getSimTpsAnalysis(sim)
+
+                    p.nsInfo("Target TPS: ${sim.tps}, last 1s, 10s, 1m: " +
+                            "${formatTps(tpsAnalysis.oneSecond)}, " +
+                            "${formatTps(tpsAnalysis.tenSeconds)}, " +
+                            "${formatTps(tpsAnalysis.oneMinute)}.")
                 }
 
                 doubleArgument("new_tps") {
