@@ -82,6 +82,8 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
         val block = e.block
         val blockPos = block.location.blockPos()
 
+        // Could use some kind of spatial tree, as it may get pretty laggy if there are a lot of sims
+        // going at the same time
         noreStone.simManager.applyOnSimsReadOnly { sim ->
             if (sim.sel.world!!.uid != e.block.world.uid) return@applyOnSimsReadOnly
             // Update happened in the same world as this sim

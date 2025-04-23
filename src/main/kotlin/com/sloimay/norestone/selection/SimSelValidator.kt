@@ -263,7 +263,7 @@ class SimSelValidator(val noreStone: NOREStone) {
             }
         }
 
-        println("Checking sim sel legal spot took ${checkStart.elapsedNow()}")
+        //println("Checking sim sel legal spot took ${checkStart.elapsedNow()}")
 
         if (blockFlagArr.isAllOne()) {
             return true
@@ -315,7 +315,7 @@ class SimSelValidator(val noreStone: NOREStone) {
             }
         }
 
-        println("Checking sim sel legal spot took ${checkStart.elapsedNow()}")
+        //println("Checking sim sel legal spot took ${checkStart.elapsedNow()}")
 
         if (blockFlagArr.isAllOne()) {
             return true
