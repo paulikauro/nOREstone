@@ -1,12 +1,12 @@
-name: norestone
-version: '1.0-SNAPSHOT'
+name: nOREstone
+version: '1.0.0'
 main: com.sloimay.norestone.NOREStone
 api-version: '1.20'
 authors: [ Sloimay ]
 
 
 
-depend: [NBTAPI]
+depend: [NBTAPI, LuckPerms, PlotSquared, WorldEdit]
 
 
 

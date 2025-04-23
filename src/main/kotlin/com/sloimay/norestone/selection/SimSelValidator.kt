@@ -27,7 +27,7 @@ class SimSelValidator(val noreStone: NOREStone) {
     }
 
     fun validateForSimSpatialChange(player: Player, newSel: SimSelection): Result<Unit, String> {
-        println((newSel.pos1 != null).toInt() + (newSel.pos2 != null).toInt())
+        //println((newSel.pos1 != null).toInt() + (newSel.pos2 != null).toInt())
         if (newSel.isComplete()) {
             val spatialValidationRes = validateSpatially(player, newSel)
             return spatialValidationRes
@@ -35,11 +35,11 @@ class SimSelValidator(val noreStone: NOREStone) {
             if (newSel.isSpatiallyPartial()) {
                 require(newSel.world != null) { "Non spatially null selection needs a world." }
                 if (newSel.pos1 != null) {
-                    val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1)
+                    val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1, 0)
                     if (pos1ValidationRes.isErr()) return pos1ValidationRes
                 }
                 if (newSel.pos2 != null) {
-                    val pos2ValidationRes = validateSelCorner(player, newSel.world, newSel.pos2)
+                    val pos2ValidationRes = validateSelCorner(player, newSel.world, newSel.pos2, 1)
                     if (pos2ValidationRes.isErr()) return pos2ValidationRes
                 }
             }
@@ -54,12 +54,26 @@ class SimSelValidator(val noreStone: NOREStone) {
     fun validateSpatially(
         player: Player,
         sel: SimSelection,
+        validateCorners: Boolean = true,
         validateAxes: Boolean = true,
         validateVolume: Boolean = true,
         validateOverlap: Boolean = true,
         validatePlotPositioning: Boolean = true,
     ): Result<Unit, String> {
         require(sel.isComplete()) { "Selection needs to be complete" }
+
+        sel.world!!
+        sel.pos1!!
+        sel.pos2!!
+
+        // Validate corners
+        if (validateCorners) {
+            val pos1ValidationRes = validateSelCorner(player, sel.world, sel.pos1, 0)
+            if (pos1ValidationRes.isErr()) return pos1ValidationRes
+
+            val pos2ValidationRes = validateSelCorner(player, sel.world, sel.pos2, 1)
+            if (pos2ValidationRes.isErr()) return pos2ValidationRes
+        }
 
         // Axis dimensions validation
         if (validateAxes) {
@@ -143,7 +157,7 @@ class SimSelValidator(val noreStone: NOREStone) {
                 "$maxVol but got $selVolume.")
     }
 
-    fun validateSelCorner(player: Player, cornerWorld: World, corner: IVec3): Result<Unit, String> {
+    fun validateSelCorner(player: Player, cornerWorld: World, corner: IVec3, cornerIdx: Int): Result<Unit, String> {
         // If the player can select everywhere then any corner is valid
         if (player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)) {
             return Result.ok(Unit)
@@ -152,7 +166,7 @@ class SimSelValidator(val noreStone: NOREStone) {
         // Check if outside the world
         val cornerWithinWorldHeight = corner.y in cornerWorld.minHeight..cornerWorld.maxHeight
         if (!cornerWithinWorldHeight) {
-            return Result.err("Selection corner should be within world height.")
+            return Result.err("Selection corner ${cornerIdx + 1} should be within world height.")
         }
 
         // Check if the plot the corner is in, is in a trusted or owned plot
@@ -160,7 +174,8 @@ class SimSelValidator(val noreStone: NOREStone) {
             ?: return Result.err("Selection corner should be inside a plot.")
         val canSetCornerHere = (player.uniqueId in plot.owners) || (player.uniqueId in plot.trusted)
         if (!canSetCornerHere) {
-            return Result.err("Selection corner should be inside a plot you either own or are trusted on.")
+            return Result.err("Selection corner ${cornerIdx + 1} should be " +
+                    "inside a plot you either own or are trusted on.")
         }
 
         return Result.ok(Unit)
@@ -284,6 +299,8 @@ class SimSelValidator(val noreStone: NOREStone) {
 
         for (plot in plotsWhereSimAllowed) {
             val cuboidRegions = plot.regions
+            // Early returning is possible for plots that aren't megaplots
+            // but this optimisation wasn't done yet
             for (cuboidRegion in cuboidRegions) {
                 val boundaryToTest = cuboidRegion.toIntBounds().flatten()
 

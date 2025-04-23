@@ -182,6 +182,8 @@ fun IVec3.toPsqLoc(w: World) = toLoc(w).toPlotSquaredLoc()
 fun IVec3.eProdLong() = x.toLong() * y.toLong() * z.toLong()
 fun IVec3.Companion.fromBlock(b: Block) = ivec3(b.x, b.y, b.z)
 
+fun IVec3.blockPosStr() = "($x, $y, $z)"
+
 fun Long.clamp(lo: Long, hi: Long) = max(min(this, hi), lo)
 fun Int.clamp(lo: Int, hi: Int) = max(min(this, hi), lo)
 
