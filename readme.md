@@ -17,7 +17,7 @@ Notes:
 - `norestone.cmd.sim.freeze`: "/sim freeze"
 - `norestone.cmd.sim.step`: "/sim step"
 - `norestone.cmd.sim.compile`: "/sim compile", "/sim clear"
-- `norestone.cmd.sim.compile.backendaccess.<backendId>`: "/sim compile <backendId>"
+- `norestone.cmd.sim.compile.backendaccess.<backendId>`: "/sim compile backendId"
 - `norestone.cmd.sim.selwand`: "/sim selwand"
 - `norestone.cmd.sim.tps`: "/sim tps"
 
