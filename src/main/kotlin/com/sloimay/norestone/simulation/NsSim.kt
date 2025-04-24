@@ -1,7 +1,6 @@
 package com.sloimay.norestone.simulation
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter
-import com.sk89q.worldedit.util.SideEffect
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.mcvolume.block.BlockState
 import com.sloimay.nodestonecore.backends.PositionedRsSimInput
@@ -13,8 +12,8 @@ import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.smath.abs
 import com.sloimay.smath.floor
 import com.sloimay.smath.vectors.IVec3
-import org.bukkit.Bukkit
-import org.bukkit.Material
+import net.querz.nbt.tag.ListTag
+import org.bukkit.block.data.BlockData
 import kotlin.math.min
 
 
@@ -39,8 +38,12 @@ class NsSim(
         private set
 
     private var state: SimState
-    private val weBlockStateCache = hashMapOf<BlockState, WeBlockState>()
+    private val weBlockStateCache = hashMapOf<BlockState, Pair<BlockData, WeBlockState>>()
+
+    // Sim local coordinates
     val positionedInputs = hashMapOf<IVec3, PositionedRsSimInput>()
+    val positionsOfContainers = hashSetOf<IVec3>()
+
 
     // == Managed by the ns sim manager
     // The samples over the last second
@@ -57,7 +60,20 @@ class NsSim(
         state = SimState.Running(this)
 
         if (nodestoneSim is ShrimpleBackend) {
+            // Get positioned inputs
             (nodestoneSim.getInputs() as List<ShrimpleInput>).forEach { positionedInputs[it.pos] = it }
+
+            // Get container positions
+            val buildBounds = nodestoneSim.volume.getBuildBounds()
+            for (pos in buildBounds.iterYzx()) {
+                val tileData = nodestoneSim.volume.getTileData(pos) ?: continue
+                val itemsNbt = tileData.get("Items") ?: continue
+                if (itemsNbt is ListTag<*>) {
+                    //println("container at $pos")
+                    positionsOfContainers.add(pos)
+                }
+            }
+
         }
     }
 
@@ -140,15 +156,31 @@ class NsSim(
     }
 
     fun render() {
-        val weWorld = BukkitAdapter.adapt(sel.world!!)
-        nodestoneSim.updateRepr(updateVolume = false, onlyNecessaryVisualUpdates = true) { localPos, newBlockState ->
-            val worldPos = local2World(localPos)
-            val weBlockState = weBlockStateCache.computeIfAbsent(newBlockState) {
-                BukkitAdapter.adapt( noreStone.server.createBlockData(it.stateStr) )
+
+        if (nodestoneSim is ShrimpleBackend) {
+            val weWorld = BukkitAdapter.adapt(sel.world!!)
+            nodestoneSim.updateRepr(updateVolume = false, onlyNecessaryVisualUpdates = true) { localPos, newBlockState ->
+                val worldPos = local2World(localPos)
+                val (bukkitBlockData, weBlockState) = weBlockStateCache.computeIfAbsent(newBlockState) {
+                    val bukkitBlockData = noreStone.server.createBlockData(it.stateStr)
+                    Pair(bukkitBlockData, BukkitAdapter.adapt( bukkitBlockData ))
+                }
+                //println("rendering block at $worldPos")
+                if (localPos !in positionsOfContainers) {
+                    // Free to place blocks with WE if it's not a container, as WE erases
+                    // NBT. However I'm pretty sure it might create some bugs with some more
+                    // obscure tile entity so let's stay on the lookout
+                    weWorld.setBlock(worldPos.toBlockVector3(), weBlockState, SideEffectSet.none())
+                } else {
+                    // It's a container so place with bukkit's API
+                    //println("PLACED USING BUKKIT API")
+                    sel.world
+                        .getBlockAt(worldPos.x, worldPos.y, worldPos.z)
+                        .setBlockData(bukkitBlockData, false)
+                }
             }
-            //println("rendering block at $worldPos")
-            weWorld.setBlock(worldPos.toBlockVector3(), weBlockState, SideEffectSet.none())
         }
+
     }
 
     private fun local2World(local: IVec3) = local + simWorldOrigin

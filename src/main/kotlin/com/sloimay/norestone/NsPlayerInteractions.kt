@@ -138,8 +138,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
                 ((simWorldBounds.b + 1) shr 4).withY(1)
             )
             for (chunkPos in chunkGridWBounds.iterYzx()) {
-                val wp = chunkPos shl 4
-                val chunkHere = simWorld.getChunkAt(wp.x, wp.z, true)
+                val chunkHere = simWorld.getChunkAt(chunkPos.x, chunkPos.z, true)
                 for (teBukkitBs in chunkHere.tileEntities) {
                     val teWorldPos = teBukkitBs.location.blockPos()
                     if (!simWorldBounds.posInside(teWorldPos)) continue
