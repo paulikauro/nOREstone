@@ -7,6 +7,7 @@ import dev.jorel.commandapi.executors.CommandArguments
 import dev.jorel.commandapi.kotlindsl.*
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import java.util.*
 
 class SimCmd(val noreStone: NOREStone) {
 
@@ -139,7 +140,7 @@ class SimCmd(val noreStone: NOREStone) {
 
                     val tpsAnalysis = noreStone.simManager.getSimTpsAnalysis(sim)
 
-                    p.nsInfo("Target TPS: ${sim.tps}, last 1s, 10s, 1m: " +
+                    p.nsInfo("Target TPS: ${formatTps(tpsAnalysis.oneSecond)}, last 1s, 10s, 1m: " +
                             "${formatTps(tpsAnalysis.oneSecond)}, " +
                             "${formatTps(tpsAnalysis.tenSeconds)}, " +
                             "${formatTps(tpsAnalysis.oneMinute)}.")
