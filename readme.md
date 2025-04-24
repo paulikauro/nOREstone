@@ -2,6 +2,8 @@
 ### Known bugs
 - Due to quirks with NBTAPI, I couldn't figure out how to get containers with items that have complex NBT on them to be recognized by redstone simulations properly. Named items should be fine. But do remember that as soon as one item is illegal, the SS returned by the container is undefined behavior.
 
+### Things to watch out for
+- Since simulations render their state back to the world by setting blocks in the world, beware of world-editing in a currently on-going simulation. As moving nodes around won't move them in the simulation, and it might re-render those nodes in the wrong positions, in an un-undoable manner.
 
 
 ### Permissions:
