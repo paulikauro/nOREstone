@@ -52,6 +52,8 @@ of redstone, with some repeater locking tweaks so that most cases work. ***PLEAS
 as "nOREstone bugs". This is work for contributors of the Nodestone backends. nOREstone has nothing to do with those bugs as it's just a bridge.*** 
 - We are aware of simulated redstone circuits not getting updated once you clear the simulation. The circuit stays in limbo and will
 be fixed in the next versions of n**ORE**stone.
+- The way a *Nodestone* simulation sends its data back to the server is by sending block changes. So if you break a repeater while the simulation is going,
+you'll see it magically reappear back once it changes state.
 - Thanks for testing!
 
 ### Contributing
