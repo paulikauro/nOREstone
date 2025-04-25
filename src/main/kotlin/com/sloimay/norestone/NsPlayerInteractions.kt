@@ -1,5 +1,6 @@
 package com.sloimay.norestone
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.mcvolume.McVolume
 import com.sloimay.nodestonecore.backends.RedstoneSimBackend
@@ -170,7 +171,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         if (backendInfo.backendId == RS_BACKENDS.shrimple.backendId) {
             // Shrimple compilation
-            // TODO: this could be made async
+            // TODO: this could be made async (?)
             rsBackend = ShrimpleBackend.new(vol, volBounds, compileFlags)
         } else {
             return Result.err("Unknown backend of id '${backendId}'.")

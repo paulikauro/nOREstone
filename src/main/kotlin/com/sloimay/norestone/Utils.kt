@@ -221,6 +221,46 @@ fun formatTps(tps: Double): String {
 
 
 
+fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<List<String>, String> {
+    val availableFlags = backendInfo.compileFlags.map { it.id }
+
+    val rawFlags = flagsStr.split(" ")
+    val flags = mutableListOf<String>()
+    for (rawFlag in rawFlags) {
+
+        if (!rawFlag.startsWith("-")) {
+            return Result.err("Compile flags must start with a dash but got '${rawFlag}'.")
+        }
+
+        val flag = rawFlag.removePrefix("-")
+        if (flag !in availableFlags) {
+            return Result.err("Unknown compile flag '$flag' for backend '${backendInfo.backendId}'." +
+                    " Available compile flags: ${availableFlags.joinToString { "-$it" }}. ")
+        }
+
+        flags.add(flag)
+    }
+
+    return Result.ok(flags)
+}
+
+
+
+
+inline fun playerFeedbackRequirePerm(player: Player, permNode: String, ifNoPerm: (String) -> Unit = {}) {
+    if (!player.hasPermission(permNode)) {
+        ifNoPerm("Lacking permission: '$permNode'.")
+    }
+}
+
+
+
+
+
+
+
+
+
 fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
 
     fun nbtApiCompoundToQuerzNbtCompound(nbtApiCompound: NBTCompound): CompoundTag {
@@ -305,37 +345,4 @@ fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
 
     return nbtApiCompoundToQuerzNbtCompound(nbtApiNbt)
 
-}
-
-
-fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<List<String>, String> {
-    val availableFlags = backendInfo.compileFlags.map { it.id }
-
-    val rawFlags = flagsStr.split(" ")
-    val flags = mutableListOf<String>()
-    for (rawFlag in rawFlags) {
-
-        if (!rawFlag.startsWith("-")) {
-            return Result.err("Compile flags must start with a dash but got '${rawFlag}'.")
-        }
-
-        val flag = rawFlag.removePrefix("-")
-        if (flag !in availableFlags) {
-            return Result.err("Unknown compile flag '$flag' for backend '${backendInfo.backendId}'." +
-                    " Available compile flags: ${availableFlags.joinToString { "-$it" }}. ")
-        }
-
-        flags.add(flag)
-    }
-
-    return Result.ok(flags)
-}
-
-
-
-
-inline fun playerFeedbackRequirePerm(player: Player, permNode: String, ifNoPerm: (String) -> Unit = {}) {
-    if (!player.hasPermission(permNode)) {
-        ifNoPerm("Lacking permission: '$permNode'.")
-    }
 }

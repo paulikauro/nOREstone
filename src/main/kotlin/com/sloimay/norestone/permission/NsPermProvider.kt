@@ -69,29 +69,33 @@ class NsPermProvider(val noreStone: NOREStone) {
         return perm(permNode).name
     }
 
+
     fun getIntPermByMax(player: Player, basePermNode: String, default: Int): Int {
-        val allNodes = getAllOfPlayersNode(player)
-        val prefix = "$basePermNode."
-
-        val intVal = allNodes
-            .map { it.key }
-            .filter { it.startsWith(prefix) && it.removePrefix(prefix).toIntOrNull() != null }
-            .maxOfOrNull { it.removePrefix(prefix).toIntOrNull()!! }
-
-        return intVal ?: default
+        return getNumberPermByMax(player, basePermNode, default, String::toIntOrNull)
     }
 
     fun getLongPermByMax(player: Player, basePermNode: String, default: Long): Long {
-        val allNodes = getAllOfPlayersNode(player)
+        return getNumberPermByMax(player, basePermNode, default, String::toLongOrNull)
+    }
+
+    private fun <T: Comparable<T>> getNumberPermByMax(
+        player: Player,
+        basePermNode: String,
+        default: T,
+        parser: String.() -> T?
+    ): T {
+        val allNodes = getAllNodesOfPlayer(player)
         val prefix = "$basePermNode."
 
-        val longVal = allNodes
+        val maxVal = allNodes
+            .filter { it.value == true } // Only get true nodes
             .map { it.key }
-            .filter { it.startsWith(prefix) && it.removePrefix(prefix).toLongOrNull() != null }
-            .maxOfOrNull { it.removePrefix(prefix).toLongOrNull()!! }
+            .filter { it.startsWith(prefix) && it.removePrefix(prefix).parser() != null }
+            .maxOfOrNull { it.removePrefix(prefix).parser()!! }
 
-        return longVal ?: default
+        return maxVal ?: default
     }
+
 
     fun destroy() {
         // Deload every permission NOREStone registered
@@ -101,10 +105,11 @@ class NsPermProvider(val noreStone: NOREStone) {
     }
 
 
-    private fun getAllOfPlayersNode(player: Player): List<Node> {
+    private fun getAllNodesOfPlayer(player: Player): List<Node> {
         val user = noreStone.luckPerms.userManager.getUser(player.uniqueId) ?: return emptyList()
         val allNodes = mutableListOf<Node>()
 
+        allNodes.addAll(user.nodes)
         val mainGroup = noreStone.luckPerms.groupManager.getGroup(user.primaryGroup)
         mainGroup?.nodes?.forEach { allNodes.add(it) }
         val inheritedGroups = user.getInheritedGroups(user.queryOptions)
