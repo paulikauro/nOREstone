@@ -244,19 +244,19 @@ class NOREStone : JavaPlugin() {
 
 
     fun getPlayerMaxSimTps(player: Player): Int {
-        return pp.getIntPerm(player, NsPerms.Simulation.maxTps, consts.DEFAULT_MAX_SIM_TPS)
+        return pp.getIntPermByMax(player, NsPerms.Simulation.maxTps, consts.DEFAULT_MAX_SIM_TPS)
     }
 
     fun getPlayerMaxSimSelSize(player: Player): IVec3 {
         return IVec3(
-            pp.getIntPerm(player, NsPerms.Simulation.Selection.MaxDims.x, consts.DEFAULT_MAX_SIM_SIZE_X),
-            pp.getIntPerm(player, NsPerms.Simulation.Selection.MaxDims.y, consts.DEFAULT_MAX_SIM_SIZE_Y),
-            pp.getIntPerm(player, NsPerms.Simulation.Selection.MaxDims.z, consts.DEFAULT_MAX_SIM_SIZE_Z),
+            pp.getIntPermByMax(player, NsPerms.Simulation.Selection.MaxDims.x, consts.DEFAULT_MAX_SIM_SIZE_X),
+            pp.getIntPermByMax(player, NsPerms.Simulation.Selection.MaxDims.y, consts.DEFAULT_MAX_SIM_SIZE_Y),
+            pp.getIntPermByMax(player, NsPerms.Simulation.Selection.MaxDims.z, consts.DEFAULT_MAX_SIM_SIZE_Z),
         )
     }
 
     fun getPlayerMaxSimSelVolume(player: Player): Long {
-        return pp.getLongPerm(player, NsPerms.Simulation.Selection.maxVolume, consts.DEFAULT_MAX_SIM_VOLUME)
+        return pp.getLongPermByMax(player, NsPerms.Simulation.Selection.maxVolume, consts.DEFAULT_MAX_SIM_VOLUME)
     }
 
     fun getPlotAt(world: World, pos: IVec3): Plot? {

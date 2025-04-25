@@ -1,6 +1,7 @@
 package com.sloimay.norestone.permission
 
 import com.sloimay.norestone.NOREStone
+import net.luckperms.api.node.Node
 import org.bukkit.entity.Player
 import org.bukkit.permissions.Permission
 import org.bukkit.permissions.PermissionDefault
@@ -68,30 +69,26 @@ class NsPermProvider(val noreStone: NOREStone) {
         return perm(permNode).name
     }
 
-    fun getIntPerm(player: Player, basePermNode: String, default: Int): Int {
-        val user = noreStone.luckPerms.userManager.getUser(player.uniqueId) ?: return default
-        val nodes = user.nodes
+    fun getIntPermByMax(player: Player, basePermNode: String, default: Int): Int {
+        val allNodes = getAllOfPlayersNode(player)
         val prefix = "$basePermNode."
 
-        val intVal = nodes
+        val intVal = allNodes
             .map { it.key }
-            .firstOrNull { it.startsWith(prefix) && it.removePrefix(prefix).toIntOrNull() != null }
-            ?.removePrefix(prefix)
-            ?.toIntOrNull()
+            .filter { it.startsWith(prefix) && it.removePrefix(prefix).toIntOrNull() != null }
+            .maxOfOrNull { it.removePrefix(prefix).toIntOrNull()!! }
 
         return intVal ?: default
     }
 
-    fun getLongPerm(player: Player, basePermNode: String, default: Long): Long {
-        val user = noreStone.luckPerms.userManager.getUser(player.uniqueId) ?: return default
-        val nodes = user.nodes
+    fun getLongPermByMax(player: Player, basePermNode: String, default: Long): Long {
+        val allNodes = getAllOfPlayersNode(player)
         val prefix = "$basePermNode."
 
-        val longVal = nodes
+        val longVal = allNodes
             .map { it.key }
-            .firstOrNull { it.startsWith(prefix) && it.removePrefix(prefix).toLongOrNull() != null }
-            ?.removePrefix(prefix)
-            ?.toLongOrNull()
+            .filter { it.startsWith(prefix) && it.removePrefix(prefix).toLongOrNull() != null }
+            .maxOfOrNull { it.removePrefix(prefix).toLongOrNull()!! }
 
         return longVal ?: default
     }
@@ -102,5 +99,21 @@ class NsPermProvider(val noreStone: NOREStone) {
             noreStone.server.pluginManager.removePermission(perm)
         }
     }
+
+
+    private fun getAllOfPlayersNode(player: Player): List<Node> {
+        val user = noreStone.luckPerms.userManager.getUser(player.uniqueId) ?: return emptyList()
+        val allNodes = mutableListOf<Node>()
+
+        val mainGroup = noreStone.luckPerms.groupManager.getGroup(user.primaryGroup)
+        mainGroup?.nodes?.forEach { allNodes.add(it) }
+        val inheritedGroups = user.getInheritedGroups(user.queryOptions)
+        inheritedGroups.forEach { allNodes.addAll(it.nodes) }
+
+        return allNodes
+    }
+
 }
+
+
 
