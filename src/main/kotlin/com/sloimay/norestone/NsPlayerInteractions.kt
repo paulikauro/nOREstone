@@ -132,6 +132,12 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         }
 
         // # Get tile entities
+        /**
+         * TODO: look into using worldedit instead of NBTAPI to get the NBT.
+         *       (use weWorld.getBlock().toBaseBlock().nbtData
+         *       Also, converting WE NBT into Querz NBT sounds easier than converting
+         *       from NBT API nbt.
+         */
         run {
             val chunkGridWBounds = IntBoundary.new(
                 simWorldBounds.a.withY(0) shr 4,

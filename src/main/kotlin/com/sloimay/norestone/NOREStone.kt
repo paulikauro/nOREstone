@@ -153,7 +153,7 @@ class NOREStone : JavaPlugin() {
         val longTypeData = TypeData("Long", FileConfiguration::isInt, FileConfiguration::getLong)
         val boolTypeData = TypeData("Boolean", FileConfiguration::isBoolean, FileConfiguration::getBoolean)
 
-
+        // what the hell did i do here lmao
         fun getOrDisable(path: String, typeData: TypeData): Any? {
             var value: Any? = null
             if (path in config.getKeys(false)) {
@@ -170,8 +170,6 @@ class NOREStone : JavaPlugin() {
             return value
         }
 
-
-        // what the hell did i do here lmao
         val defaultMaxTps = (getOrDisable("default_max_sim_tps", intTypeData,)
             ?: run { isEnabled = false; return }) as Int
 
