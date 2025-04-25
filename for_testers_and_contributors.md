@@ -54,6 +54,8 @@ as "nOREstone bugs". This is work for contributors of the Nodestone backends. nO
 be fixed in the next versions of n**ORE**stone.
 - The way a *Nodestone* simulation sends its data back to the server is by sending block changes. So if you break a repeater while the simulation is going,
 you'll see it magically reappear back once it changes state.
+- While how redstone is simulated is out of scope for n**ORE**stone, the way the redstone from *Nodestone* is rendered back to the world is
+n**ORE**stone's job. Please do tell us if you find bugs related to that. Especially when it comes to possible block NBT deletion.
 - Thanks for testing!
 
 ### Contributing
