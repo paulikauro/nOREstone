@@ -64,7 +64,7 @@ class NsSim(
             (nodestoneSim.getInputs() as List<ShrimpleInput>).forEach { positionedInputs[it.pos] = it }
 
             // Get container positions
-            val buildBounds = nodestoneSim.volume.getBuildBounds()
+            val buildBounds = nodestoneSim.volume.computeBuildBounds()
             for (pos in buildBounds.iterYzx()) {
                 val tileData = nodestoneSim.volume.getTileData(pos) ?: continue
                 val itemsNbt = tileData.get("Items") ?: continue

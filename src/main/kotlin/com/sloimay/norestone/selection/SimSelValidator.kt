@@ -1,9 +1,9 @@
 package com.sloimay.norestone.selection
 
 import com.plotsquared.core.util.query.PlotQuery
-import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
+import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
 import org.bukkit.Bukkit
 import org.bukkit.World

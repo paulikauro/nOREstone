@@ -2,7 +2,7 @@ package com.sloimay.norestone
 
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import com.sloimay.mcvolume.IntBoundary
+import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.DVec3
 import com.sloimay.smath.vectors.IVec3
 import com.sloimay.smath.vectors.ivec3

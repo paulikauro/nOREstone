@@ -1,13 +1,13 @@
 package com.sloimay.norestone
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter
-import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.mcvolume.McVolume
 import com.sloimay.nodestonecore.backends.RedstoneSimBackend
 import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.norestone.simulation.NsSim
+import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
 import de.tr7zw.nbtapi.NBT
 import de.tr7zw.nbtapi.NBTCompound
@@ -112,7 +112,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         val simWorldBounds = sel.bounds()!!
         val simWorld = sel.world!!
         // The origin of the simulation inside the standalone mcvolume is at 0,0
-        val volBounds = simWorldBounds.move(-simWorldBounds.a)
+        val volBounds = simWorldBounds.shift(-simWorldBounds.a)
 
 
         // # Instantiate vol

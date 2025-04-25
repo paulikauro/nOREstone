@@ -3,10 +3,10 @@ package com.sloimay.norestone.listeners
 import com.plotsquared.core.PlotSquared
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
-import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
+import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
 import de.tr7zw.nbtapi.NBT
 import de.tr7zw.nbtapi.NBTCompound

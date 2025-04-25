@@ -1,8 +1,8 @@
 package com.sloimay.norestone.selection
 
-import com.sloimay.mcvolume.IntBoundary
 import com.sloimay.norestone.newInclusive
 import com.sloimay.norestone.toInt
+import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
 import org.bukkit.World
 
