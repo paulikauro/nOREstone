@@ -16,8 +16,8 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
     init {
         val playerData = db.retrievePlayerData(player.uniqueId)
 
-        noreStone.server.logger.log(Level.INFO, "Retrieved selection: ${playerData.simSel.nsSerialize()}")
-        noreStone.server.logger.log(Level.INFO, "Retrieved selwand: ${playerData.selWantItem.type.name}")
+        noreStone.logger.log(Level.INFO, "Retrieved selection: ${playerData.simSel.nsSerialize()}")
+        noreStone.logger.log(Level.INFO, "Retrieved selwand: ${playerData.selWantItem.type.name}")
 
         sel = playerData.simSel
         selWand = playerData.selWantItem
@@ -33,9 +33,9 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
         }
 
         // Write player data that changed to the db
-        noreStone.server.logger.log(Level.INFO, "Saving selelection: ${sel.nsSerialize()}")
+        noreStone.logger.log(Level.INFO, "Saving selelection: ${sel.nsSerialize()}")
         db.setPlayerSimSel(player, sel)
-        noreStone.server.logger.log(Level.INFO, "Saving selwand: ${selWand.type.name}")
+        noreStone.logger.log(Level.INFO, "Saving selwand: ${selWand.type.name}")
         db.setPlayerSelWand(player, selWand)
     }
 
