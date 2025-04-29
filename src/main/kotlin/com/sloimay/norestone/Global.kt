@@ -1,12 +1,23 @@
 package com.sloimay.norestone
 
+import com.sloimay.nodestonecore.simulation.SimInitializer
+import com.sloimay.nodestonecore.simulation.initialisers.ShrimpleBackendInitializer
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
 
 
-class RsBackendInfo(val backendId: String, val displayName: String, val helpStr: String, val compileFlags: List<CompileFlag>)
-class CompileFlag(val id: String, val desc: String)
+class RsBackendInfo(
+    val backendId: String,
+    val displayName: String,
+    val descStr: String,
+    val compileFlags: List<CompileFlag>,
+    val initialiserProvider: () -> SimInitializer
+)
+class CompileFlag(
+    val id: String,
+    val desc: String
+)
 
 object RS_BACKENDS {
     val shrimple = RsBackendInfo(
@@ -14,10 +25,12 @@ object RS_BACKENDS {
         "Shrimple",
         "Simple single threaded MCHPRS-like backend.",
         listOf(
+            CompileFlag("no-wire-rendering", "Stop redstone wire visual updates (automatically disabled in io-only)."),
             CompileFlag("io-only", "Only visually update IO blocks."),
-            CompileFlag("no-wire-rendering", "Don't visually update redstone wires (automatically disabled in io-only)"),
         )
-    )
+    ) { ShrimpleBackendInitializer() }
+
+
 }
 
 val RS_BACKEND_INFO = listOf(

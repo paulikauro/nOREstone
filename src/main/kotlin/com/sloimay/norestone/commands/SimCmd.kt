@@ -23,9 +23,26 @@ class SimCmd(val noreStone: NOREStone) {
                 withPermission(NsPerms.Cmd.Sim.backends)
 
                 playerExecutor { p, args ->
-                    p.nsInfo("Here is a list of available backends:")
+                    p.nsInfo("Here is a list of the backends that are available to you:")
                     RS_BACKEND_INFO.forEach {
-                        p.nsInfo(" - ${it.displayName} (id: ${it.backendId}): ${it.helpStr}")
+                        if (p.hasPermission(NsPerms.Cmd.Sim.Compile.BackendAccess.backendId(it.backendId))) {
+                            p.nsInfo(" - ${it.displayName} (id: ${it.backendId}): ${it.descStr}")
+                        }
+                    }
+                }
+
+                for (bi in RS_BACKEND_INFO) literalArgument(bi.backendId) {
+                    // TODO: should use a separate permission to be consistent with the
+                    //       permission granularity already present in the plugin
+                    withPermission(NsPerms.Cmd.Sim.Compile.BackendAccess.backendId(bi.backendId))
+
+                    playerExecutor { p, args ->
+                        p.nsInfo("Simulation backend \"${bi.displayName}\" (id: ${bi.backendId}):")
+                        p.nsInfo("  Description: ${bi.descStr}")
+                        p.nsInfo("  Compile flags:")
+                        for (cf in bi.compileFlags) {
+                            p.nsInfo("  - -${cf.id}: ${cf.desc}")
+                        }
                     }
                 }
             }
@@ -154,7 +171,7 @@ class SimCmd(val noreStone: NOREStone) {
                         if (changeSimTpsRes.isErr()) {
                             p.nsErr(changeSimTpsRes.getErr())
                         } else {
-                            p.nsInfo("Simulation TPS set to $newTps.")
+                            p.nsInfo("Simulation target TPS set to ${"%.2f".format(Locale.ENGLISH, newTps)}.")
                         }
                     }
                 }

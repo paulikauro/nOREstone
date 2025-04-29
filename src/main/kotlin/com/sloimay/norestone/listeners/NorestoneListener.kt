@@ -3,7 +3,7 @@ package com.sloimay.norestone.listeners
 import com.plotsquared.core.PlotSquared
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
-import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
+import com.sloimay.nodestonecore.simulation.abilities.RsInputSchedulingAbility
 import com.sloimay.norestone.*
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.geometry.boundary.IntBoundary
@@ -91,9 +91,11 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
             if (!simWorldBounds.posInside(blockPos)) return@applyOnSimsReadOnly
             // Update happened in this sim bounds
 
-            // Handle user inputs per backend
-            val nodeStoneSim = sim.nodestoneSim
-            if (nodeStoneSim is ShrimpleBackend) {
+            // Handle user inputs
+            val nodeStoneSim = sim.nodeStoneSim
+
+            if (nodeStoneSim is RsInputSchedulingAbility) {
+
                 if (block.type in INPUT_MATERIALS) {
 
                     // Inputs in shrimple are relative to the simulation location in the volume
@@ -104,21 +106,23 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                     if (positionedInput != null) {
                         val doCancelEvent: Boolean = when (block.type) {
                             Material.LEVER -> {
-                                nodeStoneSim.scheduleUserInputChange(0, positionedInput, e.newCurrent)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 0, e.newCurrent)
                                 true
                             }
 
                             in STONE_BUTTON_MATS -> {
-                                nodeStoneSim.scheduleButtonPress(0, 10, positionedInput)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 0, 15)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 10, 0)
                                 true
                             }
                             in WOODEN_BUTTON_MATS -> {
-                                nodeStoneSim.scheduleButtonPress(0, 15, positionedInput)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 0, 15)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 15, 0)
                                 true
                             }
 
                             in PRESSURE_PLATE_MATS -> {
-                                nodeStoneSim.scheduleUserInputChange(0, positionedInput, e.newCurrent)
+                                nodeStoneSim.scheduleRsInput(positionedInput, 0, e.newCurrent)
                                 false
                             }
 

@@ -2,8 +2,8 @@ package com.sloimay.norestone
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sloimay.mcvolume.McVolume
-import com.sloimay.nodestonecore.backends.RedstoneSimBackend
-import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
+import com.sloimay.nodestonecore.simulation.initinterfaces.AreaRepresentationInitialized
+import com.sloimay.nodestonecore.simulation.initinterfaces.CompileFlagInitialized
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.norestone.simulation.NsSim
@@ -98,8 +98,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
                     " compile a new one.")
         }
 
-        val compileStartTime = TimeSource.Monotonic.markNow()
-
         val selValidationRes = noreStone.simSelValidator.validateForCompilation(player)
         if (selValidationRes.isErr()) return Result.err(selValidationRes.getErr())
 
@@ -107,78 +105,100 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
             return Result.err("Unknown backend of id '${backendId}'.")
         }
 
+
+        val compileStartTime = TimeSource.Monotonic.markNow()
+
+        val backendInfo = RS_BACKEND_INFO.firstOrNull { it.backendId == backendId }
+            ?: return Result.err("Unknown backend of id '${backendId}'.")
+        val simInit = backendInfo.initialiserProvider()
+
         val sesh = noreStone.getSession(player)
         val sel = sesh.sel
         val simWorldBounds = sel.bounds()!!
-        val simWorld = sel.world!!
-        // The origin of the simulation inside the standalone mcvolume is at 0,0
-        val volBounds = simWorldBounds.shift(-simWorldBounds.a)
+
+        // ## ==== Initialize depending on how this simulation wants to be initialized.
+        // Init with an area representation
+        if (simInit is AreaRepresentationInitialized) {
+
+            val simWorld = sel.world!!
+            // The origin of the simulation inside the standalone mcvolume is at 0,0
+            val volBounds = simWorldBounds.shift(-simWorldBounds.a)
 
 
-        // # Instantiate vol
-        val vol = McVolume.new(volBounds.a, volBounds.b, chunkBitSize = 4)
+            // # Instantiate vol
+            val vol = McVolume.new(volBounds.a, volBounds.b, chunkBitSize = 4)
 
-        // # Get blocks
-        // TODO: optimisation idea:
-        //         BFS over non-air blocks (tho idk how to make it substantially faster than just brute force)
-        run {
-            for (worldPos in simWorldBounds.iterYzx()) {
-                val block = simWorld.getBlockAt(worldPos.x, worldPos.y, worldPos.z)
-                if (block.type == Material.AIR) continue
+            // # Get blocks
+            // TODO: optimisation idea:
+            //         BFS over non-air blocks (tho idk how to make it substantially faster than just brute force)
+            run {
+                for (worldPos in simWorldBounds.iterYzx()) {
+                    val block = simWorld.getBlockAt(worldPos.x, worldPos.y, worldPos.z)
+                    if (block.type == Material.AIR) continue
 
-                // Place block state
-                val volPos = worldPos - simWorldBounds.a
-                vol.setBlockStateStr(volPos, block.blockData.asString)
+                    // Place block state
+                    val volPos = worldPos - simWorldBounds.a
+                    vol.setBlockStateStr(volPos, block.blockData.asString)
+                }
             }
-        }
 
-        // # Get tile entities
-        /**
-         * TODO: look into using worldedit instead of NBTAPI to get the NBT.
-         *       (use weWorld.getBlock().toBaseBlock().nbtData
-         *       Also, converting WE NBT into Querz NBT sounds easier than converting
-         *       from NBT API nbt.
-         */
-        run {
-            val chunkGridWBounds = IntBoundary.new(
-                simWorldBounds.a.withY(0) shr 4,
-                ((simWorldBounds.b shr 4) + 1).withY(1)
-            )
-            for (chunkPos in chunkGridWBounds.iterYzx()) {
-                //println("chunk polled: $chunkPos")
-                val chunkHere = simWorld.getChunkAt(chunkPos.x, chunkPos.z, true)
-                for (teBukkitBs in chunkHere.tileEntities) {
-                    val teWorldPos = teBukkitBs.location.blockPos()
-                    if (!simWorldBounds.posInside(teWorldPos)) continue
+            // # Get tile entities
+            /**
+             * TODO: look into using worldedit instead of NBTAPI to get the NBT.
+             *       (use weWorld.getBlock().toBaseBlock().nbtData
+             *       Also, converting WE NBT into Querz NBT sounds easier than converting
+             *       from NBT API nbt.
+             */
+            run {
+                val chunkGridWBounds = IntBoundary.new(
+                    simWorldBounds.a.withY(0) shr 4,
+                    ((simWorldBounds.b shr 4) + 1).withY(1)
+                )
+                for (chunkPos in chunkGridWBounds.iterYzx()) {
+                    //println("chunk polled: $chunkPos")
+                    val chunkHere = simWorld.getChunkAt(chunkPos.x, chunkPos.z, true)
+                    for (teBukkitBs in chunkHere.tileEntities) {
+                        val teWorldPos = teBukkitBs.location.blockPos()
+                        if (!simWorldBounds.posInside(teWorldPos)) continue
 
-                    // Transfer NBT to the mcvolume
-                    NBT.get(teBukkitBs) { nbt ->
-                        val teVolPos = teWorldPos - simWorldBounds.a
-                        val querzNbt = nbtApiToQuerzNbt(nbt as NBTCompound)
-                        vol.setTileData(teVolPos, querzNbt)
+                        // Transfer NBT to the mcvolume
+                        NBT.get(teBukkitBs) { nbt ->
+                            val teVolPos = teWorldPos - simWorldBounds.a
+                            val querzNbt = nbtApiToQuerzNbt(nbt as NBTCompound)
+                            vol.setTileData(teVolPos, querzNbt)
+                        }
                     }
                 }
             }
+
+            simInit.withAreaRepresentation(vol, volBounds)
         }
+
+        // Init with compile flags
+        if (simInit is CompileFlagInitialized) {
+            simInit.withCompileFlags(compileFlags)
+        }
+        // ## ====
+
+
+
 
 
         // Make the backend, do it differently depending on which one it is
         // The end goal for nodestone is to have a unified interface that removes the burden on the plugin
         // (or mod, or separate app) developer of implementing different compilation / interaction
         // logic for each simulation
-        val backendInfo = RS_BACKEND_INFO.first { it.backendId == backendId }
-        val rsBackend: RedstoneSimBackend
 
-        if (backendInfo.backendId == RS_BACKENDS.shrimple.backendId) {
-            // Shrimple compilation
-            // TODO: this could be made async (?)
-            rsBackend = ShrimpleBackend.new(vol, volBounds, compileFlags)
-        } else {
-            return Result.err("Unknown backend of id '${backendId}'.")
-        }
 
         // Make a new NsSim
-        val nsSim = NsSim(noreStone, sesh.sel, rsBackend, simWorldBounds.a, noreStone.simManager, 20.0)
+        val simBackendInitRes = try {
+            Result.ok(simInit.finishInit())
+        } catch (e: Exception) {
+            return Result.err(e.toString()) // Better than nothing logged to the player
+        }
+        val simBackend = simBackendInitRes.getOk()
+
+        val nsSim = NsSim(noreStone, sesh.sel, simBackend, simWorldBounds.a, noreStone.simManager, 20.0)
 
         // Request addition of this sim
         noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)

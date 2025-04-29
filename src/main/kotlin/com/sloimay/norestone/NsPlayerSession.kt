@@ -4,6 +4,7 @@ import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.norestone.simulation.NsSim
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import java.util.logging.Level
 
 class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
 
@@ -15,8 +16,8 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
     init {
         val playerData = db.retrievePlayerData(player.uniqueId)
 
-        println("Retrieved sel: ${playerData.simSel.nsSerialize()}")
-        println("Retrieved selwand: ${playerData.selWantItem.type.name}")
+        noreStone.server.logger.log(Level.INFO, "Retrieved selection: ${playerData.simSel.nsSerialize()}")
+        noreStone.server.logger.log(Level.INFO, "Retrieved selwand: ${playerData.selWantItem.type.name}")
 
         sel = playerData.simSel
         selWand = playerData.selWantItem
@@ -32,9 +33,9 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
         }
 
         // Write player data that changed to the db
-        println("Saving sel: ${sel.nsSerialize()}")
+        noreStone.server.logger.log(Level.INFO, "Saving selelection: ${sel.nsSerialize()}")
         db.setPlayerSimSel(player, sel)
-        println("Saving selwand: ${selWand.type.name}")
+        noreStone.server.logger.log(Level.INFO, "Saving selwand: ${selWand.type.name}")
         db.setPlayerSelWand(player, selWand)
     }
 

@@ -3,10 +3,13 @@ package com.sloimay.norestone.simulation
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.mcvolume.block.BlockState
-import com.sloimay.nodestonecore.backends.PositionedRsSimInput
-import com.sloimay.nodestonecore.backends.RedstoneSimBackend
-import com.sloimay.nodestonecore.backends.shrimple.ShrimpleBackend
-import com.sloimay.nodestonecore.backends.shrimple.ShrimpleInput
+import com.sloimay.nodestonecore.simulation.SimBackend
+import com.sloimay.nodestonecore.simulation.abilities.BlockPositionedRsInputs
+import com.sloimay.nodestonecore.simulation.abilities.BlockStateChangeRequestAbility
+import com.sloimay.nodestonecore.simulation.abilities.SyncedTickAbility
+import com.sloimay.nodestonecore.simulation.backends.shrimple.ShrimpleRsInput
+import com.sloimay.nodestonecore.simulation.inputs.SimRsInput
+import com.sloimay.nodestonecore.simulation.siminterfaces.TileEntityRequestAbility
 import com.sloimay.norestone.*
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.smath.abs
@@ -27,7 +30,7 @@ class NsSim(
     private val noreStone: NOREStone,
 
     val sel: SimSelection,
-    val nodestoneSim: RedstoneSimBackend,
+    val nodeStoneSim: SimBackend,
     val simWorldOrigin: IVec3,
 
     val simManager: NsSimManager,
@@ -41,7 +44,7 @@ class NsSim(
     private val weBlockStateCache = hashMapOf<BlockState, Pair<BlockData, WeBlockState>>()
 
     // Sim local coordinates
-    val positionedInputs = hashMapOf<IVec3, PositionedRsSimInput>()
+    val positionedInputs = hashMapOf<IVec3, SimRsInput>()
     val positionsOfContainers = hashSetOf<IVec3>()
 
 
@@ -59,21 +62,20 @@ class NsSim(
 
         state = SimState.Running(this)
 
-        if (nodestoneSim is ShrimpleBackend) {
-            // Get positioned inputs
-            (nodestoneSim.getInputs() as List<ShrimpleInput>).forEach { positionedInputs[it.pos] = it }
+        if (nodeStoneSim is BlockPositionedRsInputs) {
+            // Get positioned redstone inputs
+            (nodeStoneSim.getBlockPositionedRsInputs())
+                .forEach { positionedInputs[it.key] = it.value }
+        }
 
-            // Get container positions
-            val buildBounds = nodestoneSim.volume.computeBuildBounds()
-            for (pos in buildBounds.iterYzx()) {
-                val tileData = nodestoneSim.volume.getTileData(pos) ?: continue
-                val itemsNbt = tileData.get("Items") ?: continue
+        if (nodeStoneSim is TileEntityRequestAbility) {
+            val tileEntities = nodeStoneSim.requestTileEntities()
+            for ((tePos, te) in tileEntities) {
+                val itemsNbt = te.get("Items") ?: continue
                 if (itemsNbt is ListTag<*>) {
-                    //println("container at $pos")
-                    positionsOfContainers.add(pos)
+                    positionsOfContainers.add(tePos)
                 }
             }
-
         }
     }
 
@@ -118,7 +120,7 @@ class NsSim(
     fun endingSequence() {
 
 
-        if (nodestoneSim is ShrimpleBackend) {
+        //if (nodeStoneSim is ShrimpleBackend) {
             // This backend, like most, leaves the blocks rendered in a limbo state, as
             // it doesn't carry over the scheduled ticks
             // This is an attempt at updating those blocks after the simulation was deleted
@@ -144,7 +146,7 @@ class NsSim(
                 },
                 20
             )*/
-        }
+        //}
     }
 
 
@@ -157,9 +159,9 @@ class NsSim(
 
     fun render() {
 
-        if (nodestoneSim is ShrimpleBackend) {
+        if (nodeStoneSim is BlockStateChangeRequestAbility) {
             val weWorld = BukkitAdapter.adapt(sel.world!!)
-            nodestoneSim.updateRepr(updateVolume = false, onlyNecessaryVisualUpdates = true) { localPos, newBlockState ->
+            nodeStoneSim.requestBlockStateChanges { localPos, newBlockState ->
                 val worldPos = local2World(localPos)
                 val (bukkitBlockData, weBlockState) = weBlockStateCache.computeIfAbsent(newBlockState) {
                     val bukkitBlockData = noreStone.server.createBlockData(it.stateStr)

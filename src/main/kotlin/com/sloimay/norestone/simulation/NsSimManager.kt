@@ -1,5 +1,6 @@
 package com.sloimay.norestone.simulation
 
+import com.sloimay.nodestonecore.simulation.abilities.SyncedTickAbility
 import com.sloimay.norestone.BurstWorkThread
 import com.sloimay.norestone.NOREStone
 import java.util.*
@@ -180,22 +181,29 @@ class NsSimManager(
                 continue
             }
 
-            val simThread = simThreads[sim]!!
-            var simTicksUpdated = 0L
-            simThread.work {
-                sim.nodestoneSim.tickWhile {
-                    //println("TRY TICK: SIMS CAN TICK: $simsCanTick")
-                    if (simTicksUpdated < ticksToRunFor && simsCanTick) {
-                        //println("TICKING ONCE!!")
-                        simTicksUpdated += 1
-                        return@tickWhile true
-                    } else {
-                        return@tickWhile false
+            // Handle synced ticking (simulations whose ticking methods
+            // don't do any computation outside of their calling threads)
+            if (sim.nodeStoneSim is SyncedTickAbility) {
+
+                val simThread = simThreads[sim]!!
+                var simTicksUpdated = 0L
+                simThread.work {
+                    sim.nodeStoneSim.syncedTickWhile {
+                        //println("TRY TICK: SIMS CAN TICK: $simsCanTick")
+                        if (simTicksUpdated < ticksToRunFor && simsCanTick) {
+                            //println("TICKING ONCE!!")
+                            simTicksUpdated += 1
+                            return@syncedTickWhile true
+                        } else {
+                            return@syncedTickWhile false
+                        }
                     }
+                    // We done ticking
+                    simTickEndSequence(simTicksUpdated)
                 }
-                // We done ticking
-                simTickEndSequence(simTicksUpdated)
+
             }
+
         }
 
         // Successfully launched every update thread
@@ -207,13 +215,23 @@ class NsSimManager(
 
     private fun flushAddRemoveQueue() {
         synchronized(queueLock) {
-            for ((uuid, s) in addingQueue) {
-                if (s !in simulations) addSim(uuid, s)
+
+            val addingQueueElsToRemove = mutableListOf<Pair<UUID, NsSim>>()
+            for (p in addingQueue) {
+                val (uuid, s) = p
+                if (s.nodeStoneSim.isReady()) {
+                    if (s !in simulations) {
+                        addSim(uuid, s)
+                        addingQueueElsToRemove.add(p)
+                    }
+                }
             }
+
             for ((uuid, s) in removingQueue) {
                 if (s in simulations) removeSim(uuid, s)
             }
-            addingQueue.clear()
+
+            addingQueue.removeAll(addingQueueElsToRemove)
             removingQueue.clear()
         }
     }

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.sloimay"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     // debug
@@ -46,8 +46,8 @@ dependencies {
     implementation("dev.jorel:commandapi-bukkit-kotlin:9.7.0")
 
     // Nodestone
-    implementation("com.github.sloimayyy:nodestone:1.0.8")
-    //implementation("com.sloimay:nodestone:1.0.6") // dev dep
+    implementation("com.github.sloimayyy:nodestone:1.1.0")
+    //implementation("com.sloimay:nodestone:1.1.0") // dev dep
     implementation("com.google.code.gson:gson:2.13.0")
     implementation("com.github.sloimayyy:smath:1.1.4")
     implementation("com.github.sloimayyy:mcvolume:1.0.15")
