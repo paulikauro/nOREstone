@@ -156,6 +156,8 @@ class NsSimManager(
 
                     // If all sims are done, this thread has the responsibility of setting isUpdating
                     // to false
+                    // TODO: maybe we don't need all simulations to be done ticking;
+                    //       what if they all had their own update and render cycles?
                     if ( simsFinishedTicking.all {(_, finishedTicking) -> finishedTicking} ) {
                         isUpdating = false
                     }
