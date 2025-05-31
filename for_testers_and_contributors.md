@@ -11,6 +11,7 @@ If you want *Nodestone* to simulate my redstone, you have to programmatically ge
 the circuit you want to simulate. *Nodestone* will understand that 3D grid of blocks, and depending on the backends,
 will simulate the redstone differently. (For example, some backends may simulate redstone fast, but with less vanilla
 parity, while others simulates redstone slower with better parity.)
+[Here's a link to the Nodestone repo](https://github.com/Sloimayyy/nodestone)
 
 **nOREstone**: *Nodestone* (not n**ORE**stone) is standalone, it doesn't know about Minecraft (the 3D grid of blocks you 
 send to it as the redstone circuit is actually universal, and does not know about Minecraft but I'll spare the details).\
