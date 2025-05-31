@@ -6,6 +6,9 @@
 - Since simulations render their state back to the world by setting blocks in the world, beware of world-editing in a currently on-going simulation. As moving nodes around won't move them in the simulation, and it might re-render those nodes in the wrong positions, in an un-undoable manner.
 - When a simulation ends (whether you "/sim clear" it, or log off the server), the redstone stays as is, without any update, so you'll have to update things yourself once you're done simulating.
 
+### Where to understand the project's structure
+For info about how the project works and is structured, go read the for_testers_and_contributors.md file; context needed to understand the project lies in there.
+
 ### Permissions:
 
 Notes:
