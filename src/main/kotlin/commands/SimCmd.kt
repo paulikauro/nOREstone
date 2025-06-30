@@ -16,7 +16,6 @@ class SimCmd(val noreStone: NOREStone) {
         commandTree("sim") {
             withPermission(noreStone.pp.permStr(NsPerms.Cmd.sim))
 
-
             literalArgument("backends") {
                 withPermission(NsPerms.Cmd.Sim.backends)
 
@@ -44,56 +43,6 @@ class SimCmd(val noreStone: NOREStone) {
                     }
                 }
             }
-
-
-            literalArgument("desel") {
-                withPermission(NsPerms.Cmd.Sim.select)
-
-                playerExecutor { p, args ->
-                    when (val res = noreStone.playerInteract.desel(p)) {
-                        is Err -> p.nsErr(res.err)
-                        is Ok -> p.nsInfo("Deselected sim selection.")
-                    }
-                }
-            }
-
-
-            for (alias in listOf("pos1", "1")) literalArgument(alias) {
-                withPermission(NsPerms.Cmd.Sim.select)
-
-                playerExecutor { p, args ->
-                    val cornerPos = p.location.blockPos()
-                    when (val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 0)) {
-                        is Err -> p.nsErr(res.err)
-                        is Ok -> {
-                            val cornerChanged = res.value
-                            if (cornerChanged) {
-                                p.nsInfoSimSelSetPos(cornerPos, 0, noreStone.getSession(p).sel)
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            for (alias in listOf("pos2", "2")) literalArgument(alias) {
-                withPermission(NsPerms.Cmd.Sim.select)
-
-                playerExecutor { p, args ->
-                    val cornerPos = p.location.blockPos()
-                    when (val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 1)) {
-                        is Err -> p.nsErr(res.err)
-                        is Ok -> {
-                            val cornerChanged = res.value
-                            if (cornerChanged) {
-                                p.nsInfoSimSelSetPos(cornerPos, 1, noreStone.getSession(p).sel)
-                            }
-                        }
-                    }
-                }
-            }
-
-
 
             literalArgument("freeze") {
                 withPermission(NsPerms.Cmd.Sim.freeze)
@@ -215,42 +164,6 @@ class SimCmd(val noreStone: NOREStone) {
                         noreStone.simManager.requestSimRemove(p.uniqueId, it)
                     }
                     p.nsInfo("Simulation cleared.")
-                }
-            }
-
-
-            literalArgument("selwand") {
-                withPermission(NsPerms.Cmd.Sim.selWand)
-
-                fun logRes(p: Player, res: Result<String, String>) = when (res) {
-                    is Err -> p.nsErr(res.err)
-                    is Ok -> p.nsInfo(res.value)
-                }
-
-                val handExecutor: (Player, CommandArguments) -> Unit = lambda@{ p, args ->
-                    val res = noreStone.playerInteract.bindSimSelWand(p, p.inventory.itemInMainHand)
-                    logRes(p, res)
-                }
-                // /sim selwand hand
-                literalArgument("hand") {
-                    playerExecutor(handExecutor)
-                }
-                // /sim selwand
-                playerExecutor(handExecutor)
-                // /sim selwand default
-                literalArgument("default") {
-                    playerExecutor { p, args ->
-                        val res = noreStone.playerInteract.bindSimSelWand(p, defaultSimSelWand())
-                        logRes(p, res)
-                    }
-                }
-                // /sim selwand <item stack>
-                itemStackArgument("item") {
-                    playerExecutor { p, args ->
-                        val item = args["item"] as ItemStack
-                        val res = noreStone.playerInteract.bindSimSelWand(p, item)
-                        logRes(p, res)
-                    }
                 }
             }
         }

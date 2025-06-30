@@ -36,31 +36,6 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
     }
 
     @EventHandler
-    fun onPlayerUseSimSelWand(e: PlayerInteractEvent) {
-        val p = e.player
-        if (p.gameMode != GameMode.CREATIVE) return
-        if (e.item == null) return
-        val sesh = noreStone.getSession(p)
-        if (e.item!!.type != sesh.selWand.type) return
-        val action = e.action
-        val actionIsClickBlock = action == Action.RIGHT_CLICK_BLOCK || action == Action.LEFT_CLICK_BLOCK
-        if (!actionIsClickBlock) return
-        // Selection click so we cancel
-        e.isCancelled = true
-        val blockClicked = e.clickedBlock ?: return
-        val posToSet = IVec3.fromBlock(blockClicked)
-        val cornerIdx = when (action) {
-            Action.LEFT_CLICK_BLOCK -> 0
-            Action.RIGHT_CLICK_BLOCK -> 1
-            else -> error("Unreachable")
-        }
-        when (val res = noreStone.playerInteract.setSimSelCorner(p, posToSet, cornerIdx)) {
-            is Err -> p.nsErr(res.err)
-            is Ok -> p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
-        }
-    }
-
-    @EventHandler
     fun onRedstoneChangeInSim(e: BlockRedstoneEvent) {
         fun cancelEvent() {
             e.newCurrent = e.oldCurrent
