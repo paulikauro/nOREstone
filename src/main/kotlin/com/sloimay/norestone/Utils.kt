@@ -7,10 +7,7 @@ import com.sloimay.smath.vectors.DVec3
 import com.sloimay.smath.vectors.IVec3
 import com.sloimay.smath.vectors.ivec3
 import de.tr7zw.nbtapi.NBTCompound
-import de.tr7zw.nbtapi.NBTListCompound
-import de.tr7zw.nbtapi.NBTReflectionUtil
 import de.tr7zw.nbtapi.NBTType
-import de.tr7zw.nbtapi.handler.NBTHandlers
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.querz.nbt.tag.*
@@ -24,23 +21,18 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
 
-
 private class Ok<T>(val v: T) : Result<T, Nothing>() {
     override fun isErr() = false
     override fun isOk() = true
-
     override fun getOk() = v
-
     override fun getErr(): Nothing {
         error("Tried getting the error value from an ok result.")
     }
 }
 
 private class Err<T>(val v: T) : Result<Nothing, T>() {
-
     override fun isErr() = true
     override fun isOk() = false
-
     override fun getOk(): Nothing {
         error("Tried getting the ok value from an error result.")
     }
@@ -51,7 +43,6 @@ private class Err<T>(val v: T) : Result<Nothing, T>() {
 abstract class Result<out O, out E> {
     abstract fun isErr(): Boolean
     abstract fun isOk(): Boolean
-
     abstract fun getOk(): O
     abstract fun getErr(): E
 
@@ -62,14 +53,9 @@ abstract class Result<out O, out E> {
     }
 }
 
-
-
-
 class BitArray(val size: Long) {
     val words = IntArray(ceil(size.toDouble() / 32.0).toInt()) { 0 }
-
     fun zeroOut() = words.fill(0)
-
     fun isAllOne(): Boolean {
         for (idx in 0 until words.size - 1) {
             if (words[idx] != -1) {
@@ -103,7 +89,6 @@ class BitArray(val size: Long) {
     }
 }
 
-
 /**
  * A thread that stays alive, sleeping, until you call it to do work for you,
  * then will go back sleeping when it's done.
@@ -113,7 +98,6 @@ class BurstWorkThread {
     private var paused = true
     private var shouldBeKilled = false
     private var work: (() -> Unit)? = null
-
     private val thread = Thread {
         while (!shouldBeKilled) {
             // waiting if we paused the thread
@@ -122,7 +106,6 @@ class BurstWorkThread {
                     lock.wait()
                 }
             }
-
             // do the work if we have some and we don't need to kill the thread
             if (!shouldBeKilled && work != null) {
                 try {
@@ -131,7 +114,6 @@ class BurstWorkThread {
                 } catch (e: Exception) {
                     println("Error in thread: ${e.message}")
                 }
-
                 // reset and go back to sleep
                 synchronized(lock) {
                     work = null
@@ -163,14 +145,8 @@ class BurstWorkThread {
     }
 }
 
-
-
-
-
 fun DVec3.toLoc(w: World) = Location(w, x, y, z)
-
 fun BlockVector3.toIVec3() = IVec3(x, y, z)
-
 fun Location.blockPos() = IVec3(blockX, blockY, blockZ)
 fun Location.toPlotSquaredLoc(): com.plotsquared.core.location.Location {
     return com.plotsquared.core.location.Location.at(world!!.name, blockPos().toBlockVector3(), yaw, pitch)
@@ -181,12 +157,9 @@ fun IVec3.toBlockVector3(): BlockVector3 = BlockVector3.at(x, y, z)
 fun IVec3.toPsqLoc(w: World) = toLoc(w).toPlotSquaredLoc()
 fun IVec3.eProdLong() = x.toLong() * y.toLong() * z.toLong()
 fun IVec3.Companion.fromBlock(b: Block) = ivec3(b.x, b.y, b.z)
-
 fun IVec3.blockPosStr() = "($x, $y, $z)"
-
 fun Long.clamp(lo: Long, hi: Long) = max(min(this, hi), lo)
 fun Int.clamp(lo: Int, hi: Int) = max(min(this, hi), lo)
-
 fun Boolean.toInt() = if (this) 1 else 0
 
 /**
@@ -199,13 +172,8 @@ fun IntBoundary.Companion.newInclusive(a: IVec3, b: IVec3): IntBoundary {
 }
 
 fun Double.round(prec: Int) = round(this * prec.toDouble()) / prec.toDouble()
-
-
 fun IntBoundary.volumeLong() = (b - a).eProdLong()
-
-
 fun CuboidRegion.toIntBounds() = IntBoundary.new(minimumPoint.toIVec3(), maximumPoint.toIVec3() + 1)
-
 fun mmComp(miniMsg: String): Component {
     return MiniMessage.miniMessage().deserialize(miniMsg)
 }
@@ -219,23 +187,20 @@ fun formatTps(tps: Double): String {
     return s.trimEnd('0').removeSuffix(".")
 }
 
-
-
 fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<List<String>, String> {
     val availableFlags = backendInfo.compileFlags.map { it.id }
-
     val rawFlags = flagsStr.split(" ")
     val flags = mutableListOf<String>()
     for (rawFlag in rawFlags) {
-
         if (!rawFlag.startsWith("-")) {
             return Result.err("Compile flags must start with a dash but got '${rawFlag}'.")
         }
-
         val flag = rawFlag.removePrefix("-")
         if (flag !in availableFlags) {
-            return Result.err("Unknown compile flag '$flag' for backend '${backendInfo.backendId}'." +
-                    " Available compile flags: ${availableFlags.joinToString { "-$it" }}. ")
+            return Result.err(
+                "Unknown compile flag '$flag' for backend '${backendInfo.backendId}'." +
+                        " Available compile flags: ${availableFlags.joinToString { "-$it" }}. "
+            )
         }
 
         flags.add(flag)
@@ -244,31 +209,17 @@ fun tryParseCompileFlags(flagsStr: String, backendInfo: RsBackendInfo): Result<L
     return Result.ok(flags)
 }
 
-
-
-
 inline fun playerFeedbackRequirePerm(player: Player, permNode: String, ifNoPerm: (String) -> Unit = {}) {
     if (!player.hasPermission(permNode)) {
         ifNoPerm("Lacking permission: '$permNode'.")
     }
 }
 
-
-
-
-
-
-
-
-
 fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
-
     fun nbtApiCompoundToQuerzNbtCompound(nbtApiCompound: NBTCompound): CompoundTag {
-
         val querzCompound = CompoundTag()
 
         for (key in nbtApiCompound.keys) {
-
             val t = nbtApiCompound.getType(key)!!
 
             when (t) {
@@ -290,48 +241,57 @@ fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
                 NBTType.NBTTagList -> {
                     val listType = nbtApiCompound.getListType(key)!!
                     if (listType == NBTType.NBTTagEnd) break
-
                     var listTag: ListTag<*>? = null
                     when (listType) {
                         NBTType.NBTTagEnd -> error("Unreachable")
                         NBTType.NBTTagByte -> {}
                         NBTType.NBTTagShort -> {}
                         NBTType.NBTTagInt -> {
-                            val l = ListTag(IntTag::class.java)
+                            ListTag(IntTag::class.java)
                                 .also { list -> nbtApiCompound.getIntegerList(key).forEach { t -> list.addInt(t) } }
                         }
+
                         NBTType.NBTTagLong -> {
                             listTag = ListTag(LongTag::class.java)
                                 .also { list -> nbtApiCompound.getLongList(key).forEach { t -> list.addLong(t) } }
                         }
+
                         NBTType.NBTTagFloat -> {
                             listTag = ListTag(FloatTag::class.java)
                                 .also { list -> nbtApiCompound.getFloatList(key).forEach { t -> list.addFloat(t) } }
                         }
+
                         NBTType.NBTTagDouble -> {
                             listTag = ListTag(DoubleTag::class.java)
                                 .also { list -> nbtApiCompound.getDoubleList(key).forEach { t -> list.addDouble(t) } }
                         }
+
                         NBTType.NBTTagByteArray -> {}
                         NBTType.NBTTagString -> {
                             listTag = ListTag(StringTag::class.java)
                                 .also { list -> nbtApiCompound.getStringList(key).forEach { t -> list.addString(t) } }
                         }
+
                         NBTType.NBTTagList -> {}
-                        NBTType.NBTTagCompound ->{
+                        NBTType.NBTTagCompound -> {
                             listTag = ListTag(CompoundTag::class.java)
                                 .also { list ->
                                     try {
                                         nbtApiCompound.getCompoundList(key).forEach { t ->
                                             list.add(nbtApiCompoundToQuerzNbtCompound(t as NBTCompound))
                                         }
-                                    } catch (_: Exception) {}
+                                    } catch (_: Exception) {
+                                    }
                                 }
                         }
+
                         NBTType.NBTTagIntArray -> {
                             listTag = ListTag(IntArrayTag::class.java)
-                                .also { list -> nbtApiCompound.getIntArrayList(key).forEach { t -> list.addIntArray(t) } }
+                                .also { list ->
+                                    nbtApiCompound.getIntArrayList(key).forEach { t -> list.addIntArray(t) }
+                                }
                         }
+
                         NBTType.NBTTagLongArray -> {}
                     }
 
@@ -344,5 +304,4 @@ fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
     }
 
     return nbtApiCompoundToQuerzNbtCompound(nbtApiNbt)
-
 }

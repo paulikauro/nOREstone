@@ -1,17 +1,14 @@
 package com.sloimay.norestone
 
-import com.sloimay.norestone.selection.SimSelValidator
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.smath.vectors.IVec3
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
 
 class NsMessenger(private val noreStone: NOREStone) {
-
     val INFO_PREFIX = mmComp("<gray>[nOREstone]</gray> >> ")
     val ERR_PREFIX = mmComp("<red>[nOREstone] >> </red>")
     val WARN_PREFIX = mmComp("<color:#ff7700>[nOREstone] >> </color>")
-
     fun info(p: Player, c: Component) {
         noreStone.adventure.player(p).sendMessage(INFO_PREFIX.append(c))
     }

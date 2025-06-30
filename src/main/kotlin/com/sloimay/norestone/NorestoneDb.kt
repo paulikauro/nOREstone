@@ -6,30 +6,22 @@ import org.bukkit.inventory.ItemStack
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
-import java.util.UUID
-
+import java.util.*
 
 private object NsPlayerDataTable : Table() {
     val playerUuid = uuid("id").uniqueIndex()
-
     val selWandItem = text("sel_wand_item").default(defaultSimSelWand().nsSerialize())
     val playerSimSel = text("simulation_selection").default(SimSelection.empty().nsSerialize())
 }
-
-
 
 class NsDbPlayerData(
     val uuid: UUID,
     val selWantItem: ItemStack,
     val simSel: SimSelection,
-) {
-
-}
-
-
+)
 
 class NorestoneDb(
-    dbFile: File
+    dbFile: File,
 ) {
     private val db = Database.connect("jdbc:sqlite:$dbFile", "org.sqlite.JDBC")
 
@@ -38,7 +30,6 @@ class NorestoneDb(
             SchemaUtils.createMissingTablesAndColumns(NsPlayerDataTable)
         }
     }
-
 
     /**
      * Costly function, use sparingly
@@ -68,8 +59,6 @@ class NorestoneDb(
         }
     }
 
-
-
     /**
      * Retrieves the data associated to this player from the DB.
      * As it queries the DB, use very sparingly (like not in loops lmao)
@@ -77,7 +66,6 @@ class NorestoneDb(
     fun retrievePlayerData(uuid: UUID): NsDbPlayerData {
         return transaction(db) {
             val row = getPlayerRowOrCreate(uuid)
-
             val outUuid = row[NsPlayerDataTable.playerUuid] // keeping this in out of consistency
             val selWandItem = nsDeserializeItemStack(row[NsPlayerDataTable.selWandItem])
             val playerSimSel = SimSelection.nsDeserialize(row[NsPlayerDataTable.playerSimSel])
@@ -90,10 +78,7 @@ class NorestoneDb(
         }
     }
 
-
-
     private fun getPlayerRowOrCreate(uuid: UUID): ResultRow {
-
         var resultRow: ResultRow? = null
 
         transaction(db) {
@@ -120,5 +105,4 @@ class NorestoneDb(
             }
         }
     }
-
 }

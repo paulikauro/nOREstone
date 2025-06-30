@@ -23,7 +23,6 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 class NorestoneListener(val noreStone: NOREStone) : Listener {
-
     @EventHandler
     fun onPlayerJoin(e: PlayerJoinEvent) {
         noreStone.addSession(e.player)
@@ -36,32 +35,23 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
 
     @EventHandler
     fun onPlayerUseSimSelWand(e: PlayerInteractEvent) {
-
         val p = e.player
         if (p.gameMode != GameMode.CREATIVE) return
         if (e.item == null) return
-
         val sesh = noreStone.getSession(p)
         if (e.item!!.type != sesh.selWand.type) return
-
-
-
         val action = e.action
         val actionIsClickBlock = action == Action.RIGHT_CLICK_BLOCK || action == Action.LEFT_CLICK_BLOCK
         if (!actionIsClickBlock) return
-
         // Selection click so we cancel
         e.isCancelled = true
-
         val blockClicked = e.clickedBlock ?: return
         val posToSet = IVec3.fromBlock(blockClicked)
-
         val cornerIdx = when (action) {
             Action.LEFT_CLICK_BLOCK -> 0
             Action.RIGHT_CLICK_BLOCK -> 1
             else -> error("Unreachable")
         }
-
         val simSelSettingRes = noreStone.playerInteract.setSimSelCorner(p, posToSet, cornerIdx)
 
         if (simSelSettingRes.isErr()) {
@@ -69,9 +59,7 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
         } else {
             p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
         }
-
     }
-
 
     @EventHandler
     fun onRedstoneChangeInSim(e: BlockRedstoneEvent) {
@@ -81,7 +69,6 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
 
         val block = e.block
         val blockPos = block.location.blockPos()
-
         // Could use some kind of spatial tree, as it may get pretty laggy if there are a lot of sims
         // going at the same time
         noreStone.simManager.applyOnSimsReadOnly { sim ->
@@ -90,14 +77,11 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
             val simWorldBounds = sim.sel.bounds()!!
             if (!simWorldBounds.posInside(blockPos)) return@applyOnSimsReadOnly
             // Update happened in this sim bounds
-
             // Handle user inputs
             val nodeStoneSim = sim.nodeStoneSim
 
             if (nodeStoneSim is RsInputSchedulingAbility) {
-
                 if (block.type in INPUT_MATERIALS) {
-
                     // Inputs in shrimple are relative to the simulation location in the volume
                     // (which is anchored at 0,0)
                     val blockPosInNodestoneSim = blockPos - sim.simWorldOrigin
@@ -115,6 +99,7 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                                 nodeStoneSim.scheduleRsInput(positionedInput, 10, 0)
                                 true
                             }
+
                             in WOODEN_BUTTON_MATS -> {
                                 nodeStoneSim.scheduleRsInput(positionedInput, 0, 15)
                                 nodeStoneSim.scheduleRsInput(positionedInput, 15, 0)
@@ -126,7 +111,9 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                                 false
                             }
 
-                            else -> { true }
+                            else -> {
+                                true
+                            }
                         }
 
                         if (doCancelEvent) {
@@ -141,39 +128,24 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
         }
     }
 
-
-
-
-
-
-
-
-
-
-
     @EventHandler
     fun debug(e: PlayerInteractEvent) {
-
-
         if (DEBUG.PLOT) {
             val blockPos = e.player.location.blockPos()
             val world = e.player.world
             val plot = noreStone.getPlotAt(world, blockPos)
             if (plot == null) Bukkit.broadcastMessage("null plot")
             if (plot != null) {
-
                 // Visualize plot cuboid regions
                 Bukkit.broadcastMessage("REGIONS")
                 for ((regionIdx, r) in plot.regions.withIndex()) {
                     Bukkit.broadcastMessage("reg")
                     Bukkit.broadcastMessage(r.pos1.toString())
                     Bukkit.broadcastMessage(r.pos2.toString())
-
                     val weWorld = BukkitAdapter.adapt(world)
                     val p1 = r.minimumPoint.toIVec3().withY(4)
                     val p2 = r.maximumPoint.toIVec3().withY(4) + 1
                     val bounds = IntBoundary.new(p1, p2)
-
                     val blocks = listOf(
                         "white", "light_gray", "gray", "black",
                         "brown", "red", "orange", "yellow", "lime", "green",
@@ -211,12 +183,10 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                         Bukkit.broadcastMessage("PLOT")
                     }
                 }
-
         }
 
         if (DEBUG.NBTAPI_TO_QUERZ) {
             if (e.action != Action.RIGHT_CLICK_BLOCK) return
-
             val block = e.clickedBlock!!
             NBT.get(block.state) { nbt ->
                 val querz = nbtApiToQuerzNbt(nbt as NBTCompound)
@@ -224,8 +194,5 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                 println(SNBTUtil.toSNBT(querz))
             }
         }
-
     }
-
-
 }

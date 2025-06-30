@@ -1,15 +1,12 @@
 package com.sloimay.norestone
 
 import com.sloimay.norestone.selection.SimSelection
-import com.sloimay.norestone.simulation.NsSim
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import java.util.logging.Level
 
 class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
-
     val db = noreStone.db
-
     var sel: SimSelection
     var selWand: ItemStack
 
@@ -23,20 +20,15 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
         selWand = playerData.selWantItem
     }
 
-
-
     fun end() {
-
         // End simulation
         noreStone.simManager.getPlayerSim(player.uniqueId)?.let {
             noreStone.simManager.requestSimRemove(player.uniqueId, it)
         }
-
         // Write player data that changed to the db
         noreStone.logger.log(Level.INFO, "Saving selelection: ${sel.nsSerialize()}")
         db.setPlayerSimSel(player, sel)
         noreStone.logger.log(Level.INFO, "Saving selwand: ${selWand.type.name}")
         db.setPlayerSelWand(player, selWand)
     }
-
 }

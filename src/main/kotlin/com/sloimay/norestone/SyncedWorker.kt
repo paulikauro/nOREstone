@@ -5,9 +5,7 @@ package com.sloimay.norestone
  */
 class SyncedWorker {
     private val lock = Object()
-
     private val workQueue = mutableListOf<() -> Unit>()
-
     fun addWork(work: () -> Unit) {
         synchronized(lock) {
             workQueue.add(work)

@@ -10,11 +10,7 @@ import org.bukkit.inventory.ItemStack
 import java.util.*
 
 class SimCmd(val noreStone: NOREStone) {
-
     fun register() {
-
-
-
         commandTree("sim") {
             withPermission(noreStone.pp.permStr(NsPerms.Cmd.sim))
 
@@ -108,11 +104,9 @@ class SimCmd(val noreStone: NOREStone) {
                         p.nsErr("No simulation currently on-going.")
                         return@playerExecutor
                     }
-
                     // TODO: later down the line when warping will maybe be added,
                     //       add a check for freezing if warping is already going
                     //       Also use results and the NsPlayerInteraction class
-
                     playerFeedbackRequirePerm(p, NsPerms.Simulation.freeze) {
                         p.nsErr(it)
                         return@playerExecutor
@@ -138,7 +132,7 @@ class SimCmd(val noreStone: NOREStone) {
                         if (tickStepRes.isErr()) {
                             p.nsErr(tickStepRes.getErr())
                         } else {
-                            p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped==1L) "" else "s"}..")
+                            p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped == 1L) "" else "s"}..")
                         }
                     }
                 }
@@ -154,13 +148,14 @@ class SimCmd(val noreStone: NOREStone) {
                         p.nsErr("No simulation currently on-going.")
                         return@playerExecutor
                     }
-
                     val tpsAnalysis = noreStone.simManager.getSimTpsAnalysis(sim)
 
-                    p.nsInfo("Target TPS: ${formatTps(tpsAnalysis.oneSecond)}, last 1s, 10s, 1m: " +
-                            "${formatTps(tpsAnalysis.oneSecond)}, " +
-                            "${formatTps(tpsAnalysis.tenSeconds)}, " +
-                            "${formatTps(tpsAnalysis.oneMinute)}.")
+                    p.nsInfo(
+                        "Target TPS: ${formatTps(tpsAnalysis.oneSecond)}, last 1s, 10s, 1m: " +
+                                "${formatTps(tpsAnalysis.oneSecond)}, " +
+                                "${formatTps(tpsAnalysis.tenSeconds)}, " +
+                                "${formatTps(tpsAnalysis.oneMinute)}."
+                    )
                 }
 
                 doubleArgument("new_tps") {
@@ -184,7 +179,6 @@ class SimCmd(val noreStone: NOREStone) {
                 for (bi in RS_BACKEND_INFO) {
                     literalArgument(bi.backendId) {
                         withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.Compile.BackendAccess.backendId(bi.backendId)))
-
                         // Compile with compile flags
                         greedyStringArgument("compile_flags") {
                             playerExecutor { p, args ->
@@ -195,7 +189,6 @@ class SimCmd(val noreStone: NOREStone) {
                                     p.nsErr(flagParseResult.getErr())
                                     return@playerExecutor
                                 }
-
                                 val flags = flagParseResult.getOk()
                                 val compileResult =
                                     noreStone.playerInteract.compileSim(p, bi.backendId, flags)
@@ -207,7 +200,6 @@ class SimCmd(val noreStone: NOREStone) {
                                 p.nsInfo("Backend successfully compiled in ${compileResult.getOk()}.")
                             }
                         }
-
                         // Compile without compile flags
                         playerExecutor { p, args ->
                             val compileResult = noreStone.playerInteract.compileSim(p, bi.backendId, listOf())
@@ -249,7 +241,7 @@ class SimCmd(val noreStone: NOREStone) {
                     }
                 }
 
-                val handExecutor: (Player, CommandArguments) -> Unit = lambda@ { p, args ->
+                val handExecutor: (Player, CommandArguments) -> Unit = lambda@{ p, args ->
                     val res = noreStone.playerInteract.bindSimSelWand(p, p.inventory.itemInMainHand)
                     logRes(p, res)
                 }
@@ -259,8 +251,6 @@ class SimCmd(val noreStone: NOREStone) {
                 }
                 // /sim selwand
                 playerExecutor(handExecutor)
-
-
                 // /sim selwand default
                 literalArgument("default") {
                     playerExecutor { p, args ->
@@ -268,7 +258,6 @@ class SimCmd(val noreStone: NOREStone) {
                         logRes(p, res)
                     }
                 }
-
                 // /sim selwand <item stack>
                 itemStackArgument("item") {
                     playerExecutor { p, args ->
@@ -278,11 +267,6 @@ class SimCmd(val noreStone: NOREStone) {
                     }
                 }
             }
-
-
         }
-
     }
-
-
 }

@@ -1,6 +1,5 @@
 package com.sloimay.norestone
 
-import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sloimay.mcvolume.McVolume
 import com.sloimay.nodestonecore.simulation.initinterfaces.AreaRepresentationInitialized
 import com.sloimay.nodestonecore.simulation.initinterfaces.CompileFlagInitialized
@@ -21,15 +20,12 @@ import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 class NsPlayerInteractions(val noreStone: NOREStone) {
-
     /**
      * Setting selection corners should only happen in this method!!
      */
     fun setSimSelCorner(player: Player, newCorner: IVec3, cornerIdx: Int): Result<Boolean, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return Result.err(it) }
-
         val sesh = noreStone.getSession(player)
-
         // Check if the new corner is in the same world as the previous one (if one was set)
         val selW = sesh.sel.world
         if (selW != null) {
@@ -40,13 +36,11 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
                 )
             }
         }
-
         // If we're setting the same corner, don't do anything
         val oldCorner = sesh.sel[cornerIdx]
         if (oldCorner == newCorner) {
             return Result.ok(false)
         }
-
         // # Attempt a new selection
         val newSelAttempt = when (cornerIdx) {
             0 -> sesh.sel.withPos1(newCorner)
@@ -57,7 +51,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         val spatialChangeValidationRes =
             noreStone.simSelValidator.validateForSimSpatialChange(player, newSelAttempt)
         if (spatialChangeValidationRes.isErr()) return Result.err(spatialChangeValidationRes.getErr())
-
         // New selection attempt success
         sesh.sel = newSelAttempt
 
@@ -66,7 +59,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
     fun desel(player: Player): Result<Unit, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return Result.err(it) }
-
         val sesh = noreStone.getSession(player)
 
         sesh.sel = SimSelection.empty()
@@ -83,8 +75,10 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         noreStone.getSession(p).selWand = item
 
-        return Result.ok("Successfully bind simulation selection wand to " +
-                "'${MiniMessage.miniMessage().serialize(Component.translatable(item.type.translationKey))}'.")
+        return Result.ok(
+            "Successfully bind simulation selection wand to " +
+                    "'${MiniMessage.miniMessage().serialize(Component.translatable(item.type.translationKey))}'."
+        )
     }
 
     /**
@@ -94,40 +88,32 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
     fun compileSim(player: Player, backendId: String, compileFlags: List<String>): Result<Duration, String> {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return Result.err(it) }
         if (noreStone.doesPlayerSimExists(player)) {
-            return Result.err("Your simulation is still active, please clear it before trying to" +
-                    " compile a new one.")
+            return Result.err(
+                "Your simulation is still active, please clear it before trying to" +
+                        " compile a new one."
+            )
         }
-
         val selValidationRes = noreStone.simSelValidator.validateForCompilation(player)
         if (selValidationRes.isErr()) return Result.err(selValidationRes.getErr())
 
         if (!RS_BACKEND_INFO.any { it.backendId == backendId }) {
             return Result.err("Unknown backend of id '${backendId}'.")
         }
-
-
         val compileStartTime = TimeSource.Monotonic.markNow()
-
         val backendInfo = RS_BACKEND_INFO.firstOrNull { it.backendId == backendId }
             ?: return Result.err("Unknown backend of id '${backendId}'.")
         val simInit = backendInfo.initialiserProvider()
-
         val sesh = noreStone.getSession(player)
         val sel = sesh.sel
         val simWorldBounds = sel.bounds()!!
-
         // ## ==== Initialize depending on how this simulation wants to be initialized.
         // Init with an area representation
         if (simInit is AreaRepresentationInitialized) {
-
             val simWorld = sel.world!!
             // The origin of the simulation inside the standalone mcvolume is at 0,0
             val volBounds = simWorldBounds.shift(-simWorldBounds.a)
-
-
             // # Instantiate vol
             val vol = McVolume.new(volBounds.a, volBounds.b, chunkBitSize = 4)
-
             // # Get blocks
             // TODO: optimisation idea:
             //         BFS over non-air blocks (tho idk how to make it substantially faster than just brute force)
@@ -135,13 +121,11 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
                 for (worldPos in simWorldBounds.iterYzx()) {
                     val block = simWorld.getBlockAt(worldPos.x, worldPos.y, worldPos.z)
                     if (block.type == Material.AIR) continue
-
                     // Place block state
                     val volPos = worldPos - simWorldBounds.a
                     vol.setBlockStateStr(volPos, block.blockData.asString)
                 }
             }
-
             // # Get tile entities
             /**
              * TODO: look into using worldedit instead of NBTAPI to get the NBT.
@@ -160,7 +144,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
                     for (teBukkitBs in chunkHere.tileEntities) {
                         val teWorldPos = teBukkitBs.location.blockPos()
                         if (!simWorldBounds.posInside(teWorldPos)) continue
-
                         // Transfer NBT to the mcvolume
                         NBT.get(teBukkitBs) { nbt ->
                             val teVolPos = teWorldPos - simWorldBounds.a
@@ -173,23 +156,15 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
             simInit.withAreaRepresentation(vol, volBounds)
         }
-
         // Init with compile flags
         if (simInit is CompileFlagInitialized) {
             simInit.withCompileFlags(compileFlags)
         }
         // ## ====
-
-
-
-
-
         // Make the backend, do it differently depending on which one it is
         // The end goal for nodestone is to have a unified interface that removes the burden on the plugin
         // (or mod, or separate app) developer of implementing different compilation / interaction
         // logic for each simulation
-
-
         // Make a new NsSim
         val simBackendInitRes = try {
             Result.ok(simInit.finishInit())
@@ -197,20 +172,15 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
             return Result.err(e.toString()) // Better than nothing logged to the player
         }
         val simBackend = simBackendInitRes.getOk()
-
         val nsSim = NsSim(noreStone, sesh.sel, simBackend, simWorldBounds.a, noreStone.simManager, 20.0)
-
         // Request addition of this sim
         noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)
-
         // Just means the synced code was successful
         return Result.ok(compileStartTime.elapsedNow())
     }
 
-
     fun changeSimTps(p: Player, newTps: Double): Result<Unit, String> {
         playerFeedbackRequirePerm(p, NsPerms.Simulation.changeTps) { return Result.err(it) }
-
         val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
         if (sim == null) {
             return Result.err("No simulation currently on-going.")
@@ -222,7 +192,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         if (abs(newTps) == 0.0) {
             return Result.err("TPS cannot be 0.")
         }
-
         val maxSimTps = noreStone.getPlayerMaxSimTps(p).toDouble()
         // Bypass of max tps
         if (!p.hasPermission(NsPerms.Simulation.MaxTps.bypass)) {
@@ -235,10 +204,8 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         return Result.ok()
     }
 
-
     fun tickStep(p: Player, ticksStepped: Long): Result<Unit, String> {
         playerFeedbackRequirePerm(p, NsPerms.Simulation.step) { return Result.err(it) }
-
         val sim = noreStone.simManager.getPlayerSim(p.uniqueId)
         if (sim == null) {
             return Result.err("No simulation currently on-going.")
@@ -246,7 +213,6 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         if (!sim.isFrozen()) {
             return Result.err("Cannot step while the simulation isn't frozen.")
-
         }
 
         if (ticksStepped < 0L) {
@@ -260,5 +226,4 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         return Result.ok()
     }
-
 }

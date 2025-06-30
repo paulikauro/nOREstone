@@ -18,46 +18,29 @@ import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.*
-import kotlin.collections.HashMap
-
-
 
 enum class SimAnomalies {
     PLAYER_SEL_BOUNDS,
     SIM_SEL_BOUNDS,
 }
 
-
-
-
 class NOREStone : JavaPlugin() {
-
     val sessions = HashMap<UUID, NsPlayerSession>()
-
     val messenger = NsMessenger(this)
-
     val simSelValidator = SimSelValidator(this)
-
     val playerInteract = NsPlayerInteractions(this)
-
     val simManager = NsSimManager(this, 20)
-
     val syncedWorker = SyncedWorker()
-
 
     // lol pp
     lateinit var pp: NsPermProvider
         private set
-
     lateinit var db: NorestoneDb
         private set
-
     lateinit var consts: NsConsts
         private set
-
     lateinit var plotApi: PlotAPI
         private set
-
     lateinit var adventure: BukkitAudiences
         private set
 
@@ -65,66 +48,43 @@ class NOREStone : JavaPlugin() {
     lateinit var luckPerms: LuckPerms
         private set
 
-
-
     override fun onEnable() {
-
         // I don't like this line but I couldn't figure out a better way lol
         NORESTONE = this
-
-
         // # Config
         saveDefaultConfig()
-
         // # Permissions
         pp = NsPermProvider(this)
-
         // # Load time consts
         setupConsts()
         if (!isEnabled) return
-
         // # Hooking
         if (!hookIntoLuckPerms()) return
         plotApi = PlotAPI()
-
         // # Adventure
         adventureSetup()
-
         // # Db file
         dataFolder.mkdirs()
         val dbFile = dataFolder.resolve("norestone.db")
         db = NorestoneDb(dbFile)
-
-
         // # Register events
         server.pluginManager.registerEvents(NorestoneListener(this), this)
         plotApi.registerListener(PlotSquaredListener(this))
-
         // # Register commands
         SimCmd(this).register()
-
         // # Tickers
         Bukkit.getScheduler().runTaskTimer(this, NsTicker(this), 1, 1)
-
     }
 
     override fun onDisable() {
-
         // End all sessions
         sessions.map { it.key }.forEach { endSession(it) }
 
 
         adventure.close()
-
         // This line is awesome
         pp.destroy()
     }
-
-
-
-
-
-
 
     private fun hookIntoLuckPerms(): Boolean {
         val provider = Bukkit.getServicesManager().getRegistration(LuckPerms::class.java)
@@ -170,22 +130,17 @@ class NOREStone : JavaPlugin() {
             return value
         }
 
-        val defaultMaxTps = (getOrDisable("default_max_sim_tps", intTypeData,)
+        val defaultMaxTps = (getOrDisable("default_max_sim_tps", intTypeData)
             ?: run { isEnabled = false; return }) as Int
-
-        val defaultSelMaxX = (getOrDisable("default_max_sim_sel_size_x", intTypeData,)
+        val defaultSelMaxX = (getOrDisable("default_max_sim_sel_size_x", intTypeData)
             ?: run { isEnabled = false; return }) as Int
-
-        val defaultSelMaxY = (getOrDisable("default_max_sim_sel_size_y", intTypeData,)
+        val defaultSelMaxY = (getOrDisable("default_max_sim_sel_size_y", intTypeData)
             ?: run { isEnabled = false; return }) as Int
-
-        val defaultSelMaxZ = (getOrDisable("default_max_sim_sel_size_z", intTypeData,)
+        val defaultSelMaxZ = (getOrDisable("default_max_sim_sel_size_z", intTypeData)
             ?: run { isEnabled = false; return }) as Int
-
-        val defaultSelMaxVol = (getOrDisable("default_max_sim_volume", longTypeData,)
+        val defaultSelMaxVol = (getOrDisable("default_max_sim_volume", longTypeData)
             ?: run { isEnabled = false; return }) as Long
-
-        val extraSafeSimStateChecking = (getOrDisable("extra_safe_sim_state_checking", boolTypeData,)
+        val extraSafeSimStateChecking = (getOrDisable("extra_safe_sim_state_checking", boolTypeData)
             ?: run { isEnabled = false; return }) as Boolean
 
         consts = NsConsts(
@@ -203,10 +158,10 @@ class NOREStone : JavaPlugin() {
         logger.info("Plugin enabled with Adventure.")
     }
 
-
     fun addSession(player: Player) {
         addSession(player.uniqueId)
     }
+
     fun addSession(playerUuid: UUID) {
         val player = Bukkit.getPlayer(playerUuid)
         require(player != null) { "Trying to setup a session session for a null player." }
@@ -216,6 +171,7 @@ class NOREStone : JavaPlugin() {
     fun endSession(player: Player) {
         endSession(player.uniqueId)
     }
+
     fun endSession(playerUuid: UUID) {
         sessions.remove(playerUuid)?.end()
     }
@@ -223,23 +179,16 @@ class NOREStone : JavaPlugin() {
     fun getSession(player: Player): NsPlayerSession {
         return getSession(player.uniqueId)
     }
+
     fun getSession(playerUuid: UUID): NsPlayerSession {
         if (playerUuid !in sessions) addSession(playerUuid)
         return sessions[playerUuid]!!
     }
 
     fun getSessionUuids() = sessions.keys
-
-
-
-
-
-
     fun doesPlayerSimExists(player: Player): Boolean {
         return simManager.playerUuidSimExists(player.uniqueId)
     }
-
-
 
     fun getPlayerMaxSimTps(player: Player): Int {
         return pp.getIntPermByMax(player, NsPerms.Simulation.maxTps, consts.DEFAULT_MAX_SIM_TPS)
@@ -262,34 +211,27 @@ class NOREStone : JavaPlugin() {
         return psLocation.plot
     }
 
-
     /**
      * Checks if sims and sel bounds are living in legality
      */
     fun simulationsPoliceCheckup(): List<Pair<UUID, List<SimAnomalies>>> {
         val anomalies = mutableListOf<Pair<UUID, List<SimAnomalies>>>()
-
         val sessionUuids = getSessionUuids()
         for (seshUuid in sessionUuids) {
             val player = Bukkit.getPlayer(seshUuid)!!
             val sesh = getSession(seshUuid)
-
             val playerHasSelectBypass = player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)
-
             // Player selection check
             var playerSelLegal = true
             if (!playerHasSelectBypass && sesh.sel.isComplete()) {
                 playerSelLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(sesh.sel, player)
             }
-
             // Simulation selection check
             var simSelIsLegal = true
             val playerSim = simManager.getPlayerSim(player.uniqueId)
             if (!playerHasSelectBypass && playerSim != null) {
                 simSelIsLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(playerSim.sel, player)
             }
-
-
             // Get all anomalies
             val thisSimAnomalies = mutableListOf<SimAnomalies>()
             if (!playerSelLegal) thisSimAnomalies.add(SimAnomalies.PLAYER_SEL_BOUNDS)
@@ -300,6 +242,4 @@ class NOREStone : JavaPlugin() {
 
         return anomalies
     }
-
-
 }

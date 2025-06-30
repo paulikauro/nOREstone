@@ -5,18 +5,17 @@ import com.sloimay.nodestonecore.simulation.initialisers.ShrimpleBackendInitiali
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
-
-
 class RsBackendInfo(
     val backendId: String,
     val displayName: String,
     val descStr: String,
     val compileFlags: List<CompileFlag>,
-    val initialiserProvider: () -> SimInitializer
+    val initialiserProvider: () -> SimInitializer,
 )
+
 class CompileFlag(
     val id: String,
-    val desc: String
+    val desc: String,
 )
 
 object RS_BACKENDS {
@@ -29,16 +28,12 @@ object RS_BACKENDS {
             CompileFlag("io-only", "Only visually update IO blocks."),
         )
     ) { ShrimpleBackendInitializer() }
-
-
 }
 
 val RS_BACKEND_INFO = listOf(
     RS_BACKENDS.shrimple,
 )
-
 var NORESTONE: NOREStone? = null
-
 fun defaultSimSelWand() = ItemStack(Material.NETHERITE_SHOVEL)
 
 object DEBUG {
@@ -47,9 +42,6 @@ object DEBUG {
     val PLOT_ITERATION = false
     val NBTAPI_TO_QUERZ = false
 }
-
-
-
 
 val PRESSURE_PLATE_MATS = arrayOf(
     Material.STONE_PRESSURE_PLATE,
@@ -68,7 +60,6 @@ val PRESSURE_PLATE_MATS = arrayOf(
     Material.HEAVY_WEIGHTED_PRESSURE_PLATE,
     Material.LIGHT_WEIGHTED_PRESSURE_PLATE,
 )
-
 val WOODEN_BUTTON_MATS = arrayOf(
     Material.OAK_BUTTON,
     Material.BIRCH_BUTTON,
@@ -82,17 +73,14 @@ val WOODEN_BUTTON_MATS = arrayOf(
     Material.CHERRY_BUTTON,
     Material.MANGROVE_BUTTON,
 )
-
 val STONE_BUTTON_MATS = arrayOf(
     Material.STONE_BUTTON,
     Material.POLISHED_BLACKSTONE_BUTTON,
 )
-
 val BUTTON_MATS = arrayOf(
     *WOODEN_BUTTON_MATS,
     *STONE_BUTTON_MATS,
 )
-
 
 /**
  * Materials of user input blocks
@@ -102,11 +90,6 @@ val INPUT_MATERIALS = arrayOf(
     *BUTTON_MATS,
     *PRESSURE_PLATE_MATS,
 )
-
-
-
-
-
 val SHRIMPLE_SIM_END_MATS_TO_UPDATE = arrayOf(
     Material.REPEATER,
     Material.COMPARATOR,

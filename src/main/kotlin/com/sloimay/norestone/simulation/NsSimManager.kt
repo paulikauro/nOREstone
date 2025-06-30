@@ -6,34 +6,24 @@ import com.sloimay.norestone.NOREStone
 import java.util.*
 import kotlin.time.TimeSource
 
-
-
-
 data class TpsAnalysis(val oneSecond: Double, val tenSeconds: Double, val oneMinute: Double)
-
-
-
 class NsSimManager(
     private val noreStone: NOREStone,
     val updateHz: Int,
 ) {
     val tpsMonitoringMaxSampleCount = 60
-
     private val simHashLock = Object()
     private val simulations = hashSetOf<NsSim>()
     private val uuidToSimulations = hashMapOf<UUID, NsSim>()
-
     private val queueLock = Object()
     private val addingQueue = mutableListOf<Pair<UUID, NsSim>>()
     private val removingQueue = mutableListOf<Pair<UUID, NsSim>>()
-
     private val simMutQueueLock = Object()
     private val simMutQueue = mutableListOf<Pair<NsSim, (NsSim) -> Unit>>()
 
     // == Update cycle variables
     private val timingThread = BurstWorkThread()
     private val simThreads = hashMapOf<NsSim, BurstWorkThread>()
-
     private var isUpdating = false
     private var simsCanTick = false
 
@@ -41,11 +31,10 @@ class NsSimManager(
     private var simsFinishedTickingLock = Object()
     private var simsFinishedTicking = hashMapOf<NsSim, Boolean>()
     // ==
-
-
     fun requestSimAdd(playerUuid: UUID, sim: NsSim) {
         synchronized(queueLock) { addingQueue.add(playerUuid to sim) }
     }
+
     fun requestSimRemove(playerUuid: UUID, sim: NsSim) {
         synchronized(queueLock) { removingQueue.add(playerUuid to sim) }
     }
@@ -65,10 +54,8 @@ class NsSimManager(
         }
     }
 
-
     fun playerUuidSimExists(playerUuid: UUID) = playerUuid in uuidToSimulations.keys
     fun getPlayerSim(playerUuid: UUID) = uuidToSimulations[playerUuid]
-
     fun getSimTpsAnalysis(sim: NsSim): TpsAnalysis {
         return synchronized(sim.tpsTrackingLock) {
             TpsAnalysis(
@@ -78,8 +65,6 @@ class NsSimManager(
             )
         }
     }
-
-
 
     fun tryRender(): Boolean {
         if (isUpdating) return false
@@ -94,8 +79,6 @@ class NsSimManager(
         return true
     }
 
-
-
     /**
      * Called from the main thread (the ticking runnable) after the rendering
      * was done
@@ -104,11 +87,9 @@ class NsSimManager(
         // Don't update if we're still updating (unlikely but if the sims are
         // beefy it can happen that it spills over one server tick)
         if (isUpdating) return false
-
         // add and remove sims as per requests
         flushAddRemoveQueue()
         if (simulations.size == 0) return false
-
         // mutate the simulation variables
         synchronized(simMutQueueLock) {
             simMutQueue.forEach { (sim, block) ->
@@ -118,16 +99,12 @@ class NsSimManager(
             }
             simMutQueue.clear()
         }
-
-
         // We are now updating
         isUpdating = true
-
         // Set every sim's finished state to false
         for (sim in simulations) {
             simsFinishedTicking[sim] = false
         }
-
         // start the timing thread which will count down how many milliseconds we can
         // tick for
         val updateTimeSpanMillis = allottedMillis
@@ -140,31 +117,26 @@ class NsSimManager(
             } while (millisSinceUpdateStart < updateTimeSpanMillis)
             simsCanTick = false
         }
-
         // start the sim ticking threads
         val serverTimeDelta = 1.0 / updateHz.toDouble()
         val updateCycleTimeOnServer = serverTimeDelta
         for (sim in simulations) {
-
             fun simTickEndSequence(simTicksUpdated: Long) {
                 // May call this function from the main thread or a worker thread,
                 // however it's thread safe so we g
-
                 // Mark this sim as done ticking
                 synchronized(simsFinishedTickingLock) {
                     simsFinishedTicking[sim] = true
-
                     // If all sims are done, this thread has the responsibility of setting isUpdating
                     // to false
                     // TODO: maybe we don't need all simulations to be done ticking;
                     //       what if they all had their own update and render cycles?
-                    if ( simsFinishedTicking.all {(_, finishedTicking) -> finishedTicking} ) {
+                    if (simsFinishedTicking.all { (_, finishedTicking) -> finishedTicking }) {
                         isUpdating = false
                     }
                 }
                 // Notify this sim for how long it ran for
                 sim.notifyRanFor(simTicksUpdated)
-
                 // Do tps monitoring
                 synchronized(sim.tpsTrackingLock) {
                     sim.updateCycleCountLifetime += 1
@@ -182,11 +154,9 @@ class NsSimManager(
                 simTickEndSequence(0)
                 continue
             }
-
             // Handle synced ticking (simulations whose ticking methods
             // don't do any computation outside of their calling threads)
             if (sim.nodeStoneSim is SyncedTickAbility) {
-
                 val simThread = simThreads[sim]!!
                 var simTicksUpdated = 0L
                 simThread.work {
@@ -203,21 +173,14 @@ class NsSimManager(
                     // We done ticking
                     simTickEndSequence(simTicksUpdated)
                 }
-
             }
-
         }
-
         // Successfully launched every update thread
         return true
     }
 
-
-
-
     private fun flushAddRemoveQueue() {
         synchronized(queueLock) {
-
             val addingQueueElsToRemove = mutableListOf<Pair<UUID, NsSim>>()
             for (p in addingQueue) {
                 val (uuid, s) = p
@@ -246,9 +209,9 @@ class NsSimManager(
             simThreads[s] = BurstWorkThread()
         }
     }
+
     private fun removeSim(uuid: UUID, s: NsSim) {
         //println("removed sim for player ${Bukkit.getPlayer(uuid)!!}")
-
         synchronized(simHashLock) {
             s.endingSequence()
             simulations.remove(s)
@@ -256,5 +219,4 @@ class NsSimManager(
             simThreads.remove(s)
         }
     }
-
 }

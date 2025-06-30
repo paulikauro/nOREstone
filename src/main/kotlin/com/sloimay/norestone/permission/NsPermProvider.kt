@@ -8,15 +8,11 @@ import org.bukkit.permissions.PermissionDefault
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 
-
 class NsPermProvider(val noreStone: NOREStone) {
     private val permissions = HashMap<String, Permission>()
-
-
     private fun getPermsOfObj(obj: KClass<*>, result: MutableList<String>) {
         val nestedObjects = obj.nestedClasses
             .filter { it.objectInstance != null }
-
         val properties = obj.memberProperties.filter {
             val contains = it.visibility?.name?.contains("PRIVATE", ignoreCase = true)
             if (contains != null) {
@@ -49,7 +45,6 @@ class NsPermProvider(val noreStone: NOREStone) {
         }
     }
 
-
     private fun registerPerm(perm: Permission) {
         noreStone.server.pluginManager.addPermission(perm)
     }
@@ -69,7 +64,6 @@ class NsPermProvider(val noreStone: NOREStone) {
         return perm(permNode).name
     }
 
-
     fun getIntPermByMax(player: Player, basePermNode: String, default: Int): Int {
         return getNumberPermByMax(player, basePermNode, default, String::toIntOrNull)
     }
@@ -78,15 +72,14 @@ class NsPermProvider(val noreStone: NOREStone) {
         return getNumberPermByMax(player, basePermNode, default, String::toLongOrNull)
     }
 
-    private fun <T: Comparable<T>> getNumberPermByMax(
+    private fun <T : Comparable<T>> getNumberPermByMax(
         player: Player,
         basePermNode: String,
         default: T,
-        parser: String.() -> T?
+        parser: String.() -> T?,
     ): T {
         val allNodes = getAllNodesOfPlayer(player)
         val prefix = "$basePermNode."
-
         val maxVal = allNodes
             .filter { it.value == true } // Only get true nodes
             .map { it.key }
@@ -96,14 +89,12 @@ class NsPermProvider(val noreStone: NOREStone) {
         return maxVal ?: default
     }
 
-
     fun destroy() {
         // Deload every permission NOREStone registered
         permissions.forEach { (_, perm) ->
             noreStone.server.pluginManager.removePermission(perm)
         }
     }
-
 
     private fun getAllNodesOfPlayer(player: Player): List<Node> {
         val user = noreStone.luckPerms.userManager.getUser(player.uniqueId) ?: return emptyList()
@@ -117,8 +108,4 @@ class NsPermProvider(val noreStone: NOREStone) {
 
         return allNodes
     }
-
 }
-
-
-
