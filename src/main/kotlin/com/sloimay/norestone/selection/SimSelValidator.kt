@@ -2,6 +2,7 @@ package com.sloimay.norestone.selection
 
 import com.plotsquared.core.util.query.PlotQuery
 import com.sloimay.norestone.*
+import com.sloimay.norestone.Result.Err
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
@@ -16,33 +17,28 @@ import kotlin.time.TimeSource
 class SimSelValidator(val noreStone: NOREStone) {
     fun validateForCompilation(player: Player): Result<Unit, String> {
         val sesh = noreStone.getSession(player)
-        if (sesh.sel.isSpatiallyComplete()) {
-            val spatialValidationRes = validateSpatially(player, sesh.sel)
-            return spatialValidationRes
+        return if (sesh.sel.isSpatiallyComplete()) {
+            validateSpatially(player, sesh.sel)
         } else {
-            return Result.err("Selection isn't complete.")
+            Result.err("Selection isn't complete.")
         }
     }
 
     fun validateForSimSpatialChange(player: Player, newSel: SimSelection): Result<Unit, String> {
         //println((newSel.pos1 != null).toInt() + (newSel.pos2 != null).toInt())
-        if (newSel.isComplete()) {
-            val spatialValidationRes = validateSpatially(player, newSel)
-            return spatialValidationRes
-        } else {
-            if (newSel.isSpatiallyPartial()) {
-                require(newSel.world != null) { "Non spatially null selection needs a world." }
-                if (newSel.pos1 != null) {
-                    val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1, 0)
-                    if (pos1ValidationRes.isErr()) return pos1ValidationRes
-                }
-                if (newSel.pos2 != null) {
-                    val pos2ValidationRes = validateSelCorner(player, newSel.world, newSel.pos2, 1)
-                    if (pos2ValidationRes.isErr()) return pos2ValidationRes
-                }
+        if (newSel.isComplete()) return validateSpatially(player, newSel)
+        if (newSel.isSpatiallyPartial()) {
+            require(newSel.world != null) { "Non spatially null selection needs a world." }
+            if (newSel.pos1 != null) {
+                val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1, 0)
+                if (pos1ValidationRes is Err) return pos1ValidationRes
             }
-            return Result.ok(Unit)
+            if (newSel.pos2 != null) {
+                val pos2ValidationRes = validateSelCorner(player, newSel.world, newSel.pos2, 1)
+                if (pos2ValidationRes is Err) return pos2ValidationRes
+            }
         }
+        return Result.ok()
     }
 
     /**
@@ -65,67 +61,65 @@ class SimSelValidator(val noreStone: NOREStone) {
         // Validate corners
         if (validateCorners) {
             val pos1ValidationRes = validateSelCorner(player, sel.world, sel.pos1, 0)
-            if (pos1ValidationRes.isErr()) return pos1ValidationRes
+            if (pos1ValidationRes is Err) return pos1ValidationRes
             val pos2ValidationRes = validateSelCorner(player, sel.world, sel.pos2, 1)
-            if (pos2ValidationRes.isErr()) return pos2ValidationRes
+            if (pos2ValidationRes is Err) return pos2ValidationRes
         }
         // Axis dimensions validation
         if (validateAxes) {
             val axesRes = validatePlayerSelAxes(player, sel)
-            if (axesRes.isErr()) return axesRes
+            if (axesRes is Err) return axesRes
         }
         // Validate volume
         if (validateVolume) {
             val volumeRes = validatePlayerSelVolume(player, sel)
-            if (volumeRes.isErr()) return volumeRes
+            if (volumeRes is Err) return volumeRes
         }
         // Check if overlap any other selection / simulations
         if (validateOverlap) {
             val overlapRes = validatePlayerSelOverlap(player, sel)
-            if (overlapRes.isErr()) return overlapRes
+            if (overlapRes is Err) return overlapRes
         }
         // Check if in legal spots
         if (validatePlotPositioning) {
             val plotPositioningRes = validatePlayerSelPlotPositioning(player, sel)
-            if (plotPositioningRes.isErr()) return plotPositioningRes
+            if (plotPositioningRes is Err) return plotPositioningRes
         }
 
 
-        return Result.ok(Unit)
+        return Result.ok()
     }
 
     fun validatePlayerSelAxes(player: Player, sel: SimSelection): Result<Unit, String> {
         // Bypass
         if (player.hasPermission(NsPerms.Simulation.Selection.MaxDims.bypass)) {
-            return Result.ok(Unit)
+            return Result.ok()
         }
         val dimsLim = noreStone.getPlayerMaxSimSelSize(player)
-        val res = validateSelAxes(sel, dimsLim)
-        return res
+        return validateSelAxes(sel, dimsLim)
     }
 
     fun validatePlayerSelVolume(player: Player, sel: SimSelection): Result<Unit, String> {
         // Bypass
         if (player.hasPermission(NsPerms.Simulation.Selection.MaxVolume.bypass)) {
-            return Result.ok(Unit)
+            return Result.ok()
         }
         val maxVol = noreStone.getPlayerMaxSimSelVolume(player)
-        val res = validateSelVolume(sel, maxVol)
-        return res
+        return validateSelVolume(sel, maxVol)
     }
 
     fun validateSelAxes(sel: SimSelection, dimsLim: IVec3): Result<Unit, String> {
-        val bounds = sel.bounds() ?: return Result.ok(Unit)
+        val bounds = sel.bounds() ?: return Result.ok()
         val selDims = (bounds.b - bounds.a).abs()
         // If the diff between any of the coords is 0 or greater it means selDims <= dimsDiff everywhere
         val dimsDiff = dimsLim - selDims
-        if (dimsDiff.eMin() >= 0) return Result.ok(Unit)
+        if (dimsDiff.eMin() >= 0) return Result.ok()
         val axesNames = listOf("X", "Y", "Z")
         var wrongAxesCount = 0
         val axesStr = (0 until 3).filter {
             val wrongAxis = dimsDiff[it] < 0
             if (wrongAxis) wrongAxesCount += 1
-            return@filter wrongAxis
+            wrongAxis
         }.joinToString {
             "${axesNames[it]}: (${selDims[it]}/${dimsLim[it]})"
         }
@@ -133,21 +127,18 @@ class SimSelValidator(val noreStone: NOREStone) {
     }
 
     fun validateSelVolume(sel: SimSelection, maxVol: Long): Result<Unit, String> {
-        val bounds = sel.bounds() ?: return Result.ok(Unit)
+        val bounds = sel.bounds() ?: return Result.ok()
         val selDims = (bounds.b - bounds.a).abs()
         val selVolume = selDims.eProdLong()
-        if (selVolume <= maxVol) return Result.ok(Unit)
+        if (selVolume <= maxVol) return Result.ok()
 
-        return Result.err(
-            "Selection is too large. Max volume allowed: " +
-                    "$maxVol but got $selVolume."
-        )
+        return Result.err("Selection is too large. Max volume allowed: $maxVol but got $selVolume.")
     }
 
     fun validateSelCorner(player: Player, cornerWorld: World, corner: IVec3, cornerIdx: Int): Result<Unit, String> {
         // If the player can select everywhere then any corner is valid
         if (player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)) {
-            return Result.ok(Unit)
+            return Result.ok()
         }
         // Check if outside the world
         val cornerWithinWorldHeight = corner.y in cornerWorld.minHeight..cornerWorld.maxHeight
@@ -160,12 +151,11 @@ class SimSelValidator(val noreStone: NOREStone) {
         val canSetCornerHere = (player.uniqueId in plot.owners) || (player.uniqueId in plot.trusted)
         if (!canSetCornerHere) {
             return Result.err(
-                "Selection corner ${cornerIdx + 1} should be " +
-                        "inside a plot you either own or are trusted on."
+                "Selection corner ${cornerIdx + 1} should be inside a plot you either own or are trusted on."
             )
         }
 
-        return Result.ok(Unit)
+        return Result.ok()
     }
 
     fun validatePlayerSelOverlap(player: Player, sel: SimSelection): Result<Unit, String> {
@@ -184,7 +174,7 @@ class SimSelValidator(val noreStone: NOREStone) {
             }
         }
 
-        return Result.ok(Unit)
+        return Result.ok()
     }
 
     /**
@@ -194,19 +184,17 @@ class SimSelValidator(val noreStone: NOREStone) {
         require(sel.isComplete()) { "Cannot validate plot positioning of an incomplete sim selection." }
         // If player can select everywhere
         if (player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)) {
-            return Result.ok(Unit)
+            return Result.ok()
         }
 
         if (!isSimSelInLegalSpot_assume2dPlots(sel, player)) return Result.err(
-            "Selection overlaps with areas you do not have access to. " +
-                    "(= Plots you aren't owner of or trusted on.)"
+            "Selection overlaps with areas you do not have access to. (= Plots you aren't owner of or trusted on.)"
         )
 
-        return Result.ok(Unit)
+        return Result.ok()
     }
 
     fun isSimSelInLegalSpot(sel: SimSelection, player: Player): Boolean {
-        TimeSource.Monotonic.markNow()
         // # Iterate over every plot boundary that the player's sim is allowed to reside in.
         // # For each of these boundaries, set to 1 in a 3d array of booleans the blocks they
         // # intersect with the selection boundary. If the array is all "true" at the end of

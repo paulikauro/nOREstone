@@ -21,31 +21,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
 
-private class Ok<T>(val v: T) : Result<T, Nothing>() {
-    override fun isErr() = false
-    override fun isOk() = true
-    override fun getOk() = v
-    override fun getErr(): Nothing {
-        error("Tried getting the error value from an ok result.")
-    }
-}
-
-private class Err<T>(val v: T) : Result<Nothing, T>() {
-    override fun isErr() = true
-    override fun isOk() = false
-    override fun getOk(): Nothing {
-        error("Tried getting the ok value from an error result.")
-    }
-
-    override fun getErr() = v
-}
-
-abstract class Result<out O, out E> {
-    abstract fun isErr(): Boolean
-    abstract fun isOk(): Boolean
-    abstract fun getOk(): O
-    abstract fun getErr(): E
-
+sealed interface Result<out O, out E> {
+    data class Ok<T>(val value: T) : Result<T, Nothing>
+    data class Err<T>(val err: T) : Result <Nothing, T>
     companion object {
         fun ok(): Result<Unit, Nothing> = ok(Unit)
         fun <T> ok(v: T): Result<T, Nothing> = Ok(v)

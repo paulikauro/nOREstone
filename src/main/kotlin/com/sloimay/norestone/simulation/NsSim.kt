@@ -30,7 +30,7 @@ class NsSim(
     val sel: SimSelection,
     val nodeStoneSim: SimBackend,
     val simWorldOrigin: IVec3,
-    val simManager: NsSimManager,
+    simManager: NsSimManager,
     tps: Double,
 ) {
     var tps: Double = tps

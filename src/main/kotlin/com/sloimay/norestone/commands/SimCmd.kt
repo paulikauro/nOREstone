@@ -1,6 +1,8 @@
 package com.sloimay.norestone.commands
 
 import com.sloimay.norestone.*
+import com.sloimay.norestone.Result.Err
+import com.sloimay.norestone.Result.Ok
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.simulation.NsSim
 import dev.jorel.commandapi.executors.CommandArguments
@@ -48,11 +50,9 @@ class SimCmd(val noreStone: NOREStone) {
                 withPermission(NsPerms.Cmd.Sim.select)
 
                 playerExecutor { p, args ->
-                    val res = noreStone.playerInteract.desel(p)
-                    if (res.isErr()) {
-                        p.nsErr(res.getErr())
-                    } else {
-                        p.nsInfo("Deselected sim selection.")
+                    when (val res = noreStone.playerInteract.desel(p)) {
+                        is Err -> p.nsErr(res.err)
+                        is Ok -> p.nsInfo("Deselected sim selection.")
                     }
                 }
             }
@@ -63,13 +63,13 @@ class SimCmd(val noreStone: NOREStone) {
 
                 playerExecutor { p, args ->
                     val cornerPos = p.location.blockPos()
-                    val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 0)
-                    if (res.isErr()) {
-                        p.nsErr(res.getErr())
-                    } else {
-                        val cornerChanged = res.isOk()
-                        if (cornerChanged) {
-                            p.nsInfoSimSelSetPos(cornerPos, 0, noreStone.getSession(p).sel)
+                    when (val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 0)) {
+                        is Err -> p.nsErr(res.err)
+                        is Ok -> {
+                            val cornerChanged = res.value
+                            if (cornerChanged) {
+                                p.nsInfoSimSelSetPos(cornerPos, 0, noreStone.getSession(p).sel)
+                            }
                         }
                     }
                 }
@@ -81,13 +81,13 @@ class SimCmd(val noreStone: NOREStone) {
 
                 playerExecutor { p, args ->
                     val cornerPos = p.location.blockPos()
-                    val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 1)
-                    if (res.isErr()) {
-                        p.nsErr(res.getErr())
-                    } else {
-                        val cornerChanged = res.isOk()
-                        if (cornerChanged) {
-                            p.nsInfoSimSelSetPos(cornerPos, 1, noreStone.getSession(p).sel)
+                    when (val res = noreStone.playerInteract.setSimSelCorner(p, cornerPos, 1)) {
+                        is Err -> p.nsErr(res.err)
+                        is Ok -> {
+                            val cornerChanged = res.value
+                            if (cornerChanged) {
+                                p.nsInfoSimSelSetPos(cornerPos, 1, noreStone.getSession(p).sel)
+                            }
                         }
                     }
                 }
@@ -127,12 +127,9 @@ class SimCmd(val noreStone: NOREStone) {
                 longArgument("ticks") {
                     playerExecutor { p, args ->
                         val ticksStepped = args["ticks"] as Long
-                        val tickStepRes = noreStone.playerInteract.tickStep(p, ticksStepped)
-
-                        if (tickStepRes.isErr()) {
-                            p.nsErr(tickStepRes.getErr())
-                        } else {
-                            p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped == 1L) "" else "s"}..")
+                        when (val res = noreStone.playerInteract.tickStep(p, ticksStepped)) {
+                            is Err -> p.nsErr(res.err)
+                            is Ok -> p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped == 1L) "" else "s"}..")
                         }
                     }
                 }
@@ -161,12 +158,9 @@ class SimCmd(val noreStone: NOREStone) {
                 doubleArgument("new_tps") {
                     playerExecutor { p, args ->
                         val newTps = args["new_tps"] as Double
-                        val changeSimTpsRes = noreStone.playerInteract.changeSimTps(p, newTps)
-
-                        if (changeSimTpsRes.isErr()) {
-                            p.nsErr(changeSimTpsRes.getErr())
-                        } else {
-                            p.nsInfo("Simulation target TPS set to ${"%.2f".format(Locale.ENGLISH, newTps)}.")
+                        when (val res = noreStone.playerInteract.changeSimTps(p, newTps)) {
+                            is Err -> p.nsErr(res.err)
+                            is Ok -> p.nsInfo("Simulation target TPS set to ${"%.2f".format(Locale.ENGLISH, newTps)}.")
                         }
                     }
                 }
@@ -185,30 +179,25 @@ class SimCmd(val noreStone: NOREStone) {
                                 val flagParseResult = tryParseCompileFlags(
                                     args["compile_flags"] as String, bi
                                 )
-                                if (flagParseResult.isErr()) {
-                                    p.nsErr(flagParseResult.getErr())
-                                    return@playerExecutor
+                                val flags = when (flagParseResult) {
+                                    is Err -> {
+                                        p.nsErr(flagParseResult.err)
+                                        return@playerExecutor
+                                    }
+                                    is Ok -> flagParseResult.value
                                 }
-                                val flags = flagParseResult.getOk()
-                                val compileResult =
-                                    noreStone.playerInteract.compileSim(p, bi.backendId, flags)
-                                if (compileResult.isErr()) {
-                                    p.nsErr(compileResult.getErr())
-                                    return@playerExecutor
+                                when (val res = noreStone.playerInteract.compileSim(p, bi.backendId, flags)) {
+                                    is Err -> p.nsErr(res.err)
+                                    is Ok -> p.nsInfo("Backend successfully compiled in ${res.value}.")
                                 }
-
-                                p.nsInfo("Backend successfully compiled in ${compileResult.getOk()}.")
                             }
                         }
                         // Compile without compile flags
                         playerExecutor { p, args ->
-                            val compileResult = noreStone.playerInteract.compileSim(p, bi.backendId, listOf())
-                            if (compileResult.isErr()) {
-                                p.nsErr(compileResult.getErr())
-                                return@playerExecutor
+                            when (val res = noreStone.playerInteract.compileSim(p, bi.backendId, listOf())) {
+                                is Err -> p.nsErr(res.err)
+                                is Ok -> p.nsInfo("Backend successfully compiled in ${res.value}.")
                             }
-
-                            p.nsInfo("Backend successfully compiled in ${compileResult.getOk()}.")
                         }
                     }
                 }
@@ -233,12 +222,9 @@ class SimCmd(val noreStone: NOREStone) {
             literalArgument("selwand") {
                 withPermission(NsPerms.Cmd.Sim.selWand)
 
-                fun logRes(p: Player, r: Result<String, String>) {
-                    if (r.isErr()) {
-                        p.nsErr(r.getErr())
-                    } else if (r.isOk()) {
-                        p.nsInfo(r.getOk())
-                    }
+                fun logRes(p: Player, res: Result<String, String>) = when (res) {
+                    is Err -> p.nsErr(res.err)
+                    is Ok -> p.nsInfo(res.value)
                 }
 
                 val handExecutor: (Player, CommandArguments) -> Unit = lambda@{ p, args ->

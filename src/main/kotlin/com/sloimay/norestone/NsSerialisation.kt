@@ -11,8 +11,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.*
 
-private val NULL_STR = "null"
-private val FIELD_SEP = "|"
+private const val NULL_STR = "null"
+private const val FIELD_SEP = "|"
 fun IVec3.nsSerialise() = "$x $y $z"
 fun IVec3.Companion.nsDeserialize(s: String) = fromArray(s.split(" ").map { it.toInt() }.toIntArray())
 fun SimSelection.nsSerialize() =

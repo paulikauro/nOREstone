@@ -2,13 +2,11 @@ package com.sloimay.norestone.simulation
 
 import com.sloimay.nodestonecore.simulation.abilities.SyncedTickAbility
 import com.sloimay.norestone.BurstWorkThread
-import com.sloimay.norestone.NOREStone
 import java.util.*
 import kotlin.time.TimeSource
 
 data class TpsAnalysis(val oneSecond: Double, val tenSeconds: Double, val oneMinute: Double)
 class NsSimManager(
-    private val noreStone: NOREStone,
     val updateHz: Int,
 ) {
     val tpsMonitoringMaxSampleCount = 60
@@ -68,7 +66,7 @@ class NsSimManager(
 
     fun tryRender(): Boolean {
         if (isUpdating) return false
-        if (simulations.size == 0) return false
+        if (simulations.isEmpty()) return false
 
         for (sim in simulations) {
             if (!sim.shouldRender()) continue
@@ -89,7 +87,7 @@ class NsSimManager(
         if (isUpdating) return false
         // add and remove sims as per requests
         flushAddRemoveQueue()
-        if (simulations.size == 0) return false
+        if (simulations.isEmpty()) return false
         // mutate the simulation variables
         synchronized(simMutQueueLock) {
             simMutQueue.forEach { (sim, block) ->
@@ -165,9 +163,9 @@ class NsSimManager(
                         if (simTicksUpdated < ticksToRunFor && simsCanTick) {
                             //println("TICKING ONCE!!")
                             simTicksUpdated += 1
-                            return@syncedTickWhile true
+                            true
                         } else {
-                            return@syncedTickWhile false
+                            false
                         }
                     }
                     // We done ticking

@@ -10,7 +10,6 @@ import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelValidator
 import com.sloimay.norestone.simulation.NsSimManager
 import com.sloimay.smath.vectors.IVec3
-import net.kyori.adventure.platform.bukkit.BukkitAudiences
 import net.luckperms.api.LuckPerms
 import org.bukkit.Bukkit
 import org.bukkit.World
@@ -28,7 +27,7 @@ class NOREStone : JavaPlugin() {
     val sessions = HashMap<UUID, NsPlayerSession>()
     val simSelValidator = SimSelValidator(this)
     val playerInteract = NsPlayerInteractions(this)
-    val simManager = NsSimManager(this, 20)
+    val simManager = NsSimManager(20)
     val syncedWorker = SyncedWorker()
 
     // lol pp

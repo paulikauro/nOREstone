@@ -5,6 +5,8 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.nodestonecore.simulation.abilities.RsInputSchedulingAbility
 import com.sloimay.norestone.*
+import com.sloimay.norestone.Result.Err
+import com.sloimay.norestone.Result.Ok
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.geometry.boundary.IntBoundary
 import com.sloimay.smath.vectors.IVec3
@@ -52,12 +54,9 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
             Action.RIGHT_CLICK_BLOCK -> 1
             else -> error("Unreachable")
         }
-        val simSelSettingRes = noreStone.playerInteract.setSimSelCorner(p, posToSet, cornerIdx)
-
-        if (simSelSettingRes.isErr()) {
-            p.nsErr(simSelSettingRes.getErr())
-        } else {
-            p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
+        when (val res = noreStone.playerInteract.setSimSelCorner(p, posToSet, cornerIdx)) {
+            is Err -> p.nsErr(res.err)
+            is Ok -> p.nsInfoSimSelSetPos(posToSet, cornerIdx, noreStone.getSession(p).sel)
         }
     }
 

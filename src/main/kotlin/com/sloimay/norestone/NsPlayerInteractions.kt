@@ -3,6 +3,7 @@ package com.sloimay.norestone
 import com.sloimay.mcvolume.McVolume
 import com.sloimay.nodestonecore.simulation.initinterfaces.AreaRepresentationInitialized
 import com.sloimay.nodestonecore.simulation.initinterfaces.CompileFlagInitialized
+import com.sloimay.norestone.Result.Err
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.norestone.simulation.NsSim
@@ -50,7 +51,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         // Spatial change validation
         val spatialChangeValidationRes =
             noreStone.simSelValidator.validateForSimSpatialChange(player, newSelAttempt)
-        if (spatialChangeValidationRes.isErr()) return Result.err(spatialChangeValidationRes.getErr())
+        if (spatialChangeValidationRes is Err) return spatialChangeValidationRes
         // New selection attempt success
         sesh.sel = newSelAttempt
 
@@ -63,7 +64,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         sesh.sel = SimSelection.empty()
 
-        return Result.ok(Unit)
+        return Result.ok()
     }
 
     fun bindSimSelWand(p: Player, item: ItemStack): Result<String, String> {
@@ -77,7 +78,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
 
         return Result.ok(
             "Successfully bind simulation selection wand to " +
-                    "'${MiniMessage.miniMessage().serialize(Component.translatable(item.type.translationKey))}'."
+                    "'${MiniMessage.miniMessage().serialize(Component.translatable(item.type.translationKey()))}'."
         )
     }
 
@@ -94,7 +95,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
             )
         }
         val selValidationRes = noreStone.simSelValidator.validateForCompilation(player)
-        if (selValidationRes.isErr()) return Result.err(selValidationRes.getErr())
+        if (selValidationRes is Err) return selValidationRes
 
         if (!RS_BACKEND_INFO.any { it.backendId == backendId }) {
             return Result.err("Unknown backend of id '${backendId}'.")
@@ -166,12 +167,11 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         // (or mod, or separate app) developer of implementing different compilation / interaction
         // logic for each simulation
         // Make a new NsSim
-        val simBackendInitRes = try {
-            Result.ok(simInit.finishInit())
+        val simBackend = try {
+            simInit.finishInit()
         } catch (e: Exception) {
             return Result.err(e.toString()) // Better than nothing logged to the player
         }
-        val simBackend = simBackendInitRes.getOk()
         val nsSim = NsSim(noreStone, sesh.sel, simBackend, simWorldBounds.a, noreStone.simManager, 20.0)
         // Request addition of this sim
         noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)
