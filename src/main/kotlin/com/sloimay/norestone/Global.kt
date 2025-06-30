@@ -33,7 +33,7 @@ object RS_BACKENDS {
 val RS_BACKEND_INFO = listOf(
     RS_BACKENDS.shrimple,
 )
-var NORESTONE: NOREStone? = null
+
 fun defaultSimSelWand() = ItemStack(Material.NETHERITE_SHOVEL)
 
 object DEBUG {

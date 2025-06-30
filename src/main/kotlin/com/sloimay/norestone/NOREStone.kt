@@ -26,7 +26,6 @@ enum class SimAnomalies {
 
 class NOREStone : JavaPlugin() {
     val sessions = HashMap<UUID, NsPlayerSession>()
-    val messenger = NsMessenger(this)
     val simSelValidator = SimSelValidator(this)
     val playerInteract = NsPlayerInteractions(this)
     val simManager = NsSimManager(this, 20)
@@ -41,16 +40,12 @@ class NOREStone : JavaPlugin() {
         private set
     lateinit var plotApi: PlotAPI
         private set
-    lateinit var adventure: BukkitAudiences
-        private set
 
     // # Hooked plugins
     lateinit var luckPerms: LuckPerms
         private set
 
     override fun onEnable() {
-        // I don't like this line but I couldn't figure out a better way lol
-        NORESTONE = this
         // # Config
         saveDefaultConfig()
         // # Permissions
@@ -61,8 +56,6 @@ class NOREStone : JavaPlugin() {
         // # Hooking
         if (!hookIntoLuckPerms()) return
         plotApi = PlotAPI()
-        // # Adventure
-        adventureSetup()
         // # Db file
         dataFolder.mkdirs()
         val dbFile = dataFolder.resolve("norestone.db")
@@ -79,9 +72,6 @@ class NOREStone : JavaPlugin() {
     override fun onDisable() {
         // End all sessions
         sessions.map { it.key }.forEach { endSession(it) }
-
-
-        adventure.close()
         // This line is awesome
         pp.destroy()
     }
@@ -101,7 +91,7 @@ class NOREStone : JavaPlugin() {
     }
 
     fun setupConsts() {
-        var config = getConfig()
+        val config = getConfig()
 
         class TypeData(
             val name: String,
@@ -151,11 +141,6 @@ class NOREStone : JavaPlugin() {
             defaultSelMaxVol,
             extraSafeSimStateChecking,
         )
-    }
-
-    private fun adventureSetup() {
-        adventure = BukkitAudiences.create(this)
-        logger.info("Plugin enabled with Adventure.")
     }
 
     fun addSession(player: Player) {
