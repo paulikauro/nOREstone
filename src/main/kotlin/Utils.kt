@@ -152,9 +152,6 @@ fun IntBoundary.Companion.newInclusive(a: IVec3, b: IVec3): IntBoundary {
 fun Double.round(prec: Int) = round(this * prec.toDouble()) / prec.toDouble()
 fun IntBoundary.volumeLong() = (b - a).eProdLong()
 fun CuboidRegion.toIntBounds() = IntBoundary.new(minimumPoint.toIVec3(), maximumPoint.toIVec3() + 1)
-fun mmComp(miniMsg: String): Component {
-    return MiniMessage.miniMessage().deserialize(miniMsg)
-}
 
 fun formatTps(tps: Double): String {
     val s = if (tps <= 100.0) {

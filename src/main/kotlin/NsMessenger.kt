@@ -1,8 +1,10 @@
 package com.sloimay.norestone
 
-import com.sloimay.norestone.selection.SimSelection
-import com.sloimay.smath.vectors.IVec3
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.entity.Player
+
+private fun mmComp(miniMsg: String): Component = MiniMessage.miniMessage().deserialize(miniMsg)
 
 private val INFO_PREFIX = mmComp("<gray>[nOREstone]</gray> >> ")
 private val ERR_PREFIX = mmComp("<red>[nOREstone] >> </red>")
