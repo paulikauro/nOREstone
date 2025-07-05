@@ -5,10 +5,7 @@ import com.sloimay.norestone.Result.Err
 import com.sloimay.norestone.Result.Ok
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.simulation.NsSim
-import dev.jorel.commandapi.executors.CommandArguments
 import dev.jorel.commandapi.kotlindsl.*
-import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
 import java.util.*
 
 class SimCmd(val noreStone: NOREStone) {
@@ -123,13 +120,13 @@ class SimCmd(val noreStone: NOREStone) {
                         is Ok -> p.nsInfo(res.value)
                     }
                 }
-                literalArgument("clear") {
-                    // TODO: is withPermission needed here too?
-                    withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
-                    playerExecutor { p, args ->
-                        noreStone.playerInteract.clearSelection(p)
-                        p.nsInfo("Successfully cleared your selection")
-                    }
+            }
+
+            literalArgument("desel") {
+                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                playerExecutor { p, args ->
+                    noreStone.playerInteract.desel(p)
+                    p.nsInfo("Successfully cleared your selection")
                 }
             }
 

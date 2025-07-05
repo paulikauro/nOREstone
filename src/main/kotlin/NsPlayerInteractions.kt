@@ -37,7 +37,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         return Result.ok("Succesfully set your simulation selection from your WorldEdit selection.")
     }
 
-    fun clearSelection(player: Player) {
+    fun desel(player: Player) {
         noreStone.getSession(player).sel = null
     }
 

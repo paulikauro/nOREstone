@@ -81,9 +81,7 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
                                 false
                             }
 
-                            else -> {
-                                true
-                            }
+                            else -> true
                         }
 
                         if (doCancelEvent) {
