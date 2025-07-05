@@ -1,24 +1,23 @@
 package com.sloimay.norestone
 
 import com.sloimay.norestone.selection.SimSelection
-import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
+import com.sloimay.smath.vectors.IVec3
+import org.bukkit.Bukkit
+import org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import java.io.File
 import java.util.*
 
-private object NsPlayerDataTable : Table() {
+private object PlayerSelections : Table() {
     val playerUuid = uuid("id").uniqueIndex()
-    val selWandItem = text("sel_wand_item").default(defaultSimSelWand().nsSerialize())
-    val playerSimSel = text("simulation_selection").default(SimSelection.empty().nsSerialize())
+    val playerSimSel = text("simulation_selection")
 }
-
-class NsDbPlayerData(
-    val uuid: UUID,
-    val selWantItem: ItemStack,
-    val simSel: SimSelection,
-)
 
 class NorestoneDb(
     dbFile: File,
@@ -27,82 +26,45 @@ class NorestoneDb(
 
     init {
         transaction(db) {
-            SchemaUtils.createMissingTablesAndColumns(NsPlayerDataTable)
+            SchemaUtils.create(PlayerSelections)
         }
     }
 
-    /**
-     * Costly function, use sparingly
-     */
-    fun setPlayerSimSel(p: Player, sel: SimSelection) {
-        updatePlayerEntry(p, NsPlayerDataTable.playerSimSel, sel.nsSerialize())
-    }
-
-    /**
-     * Costly function, use sparingly
-     */
-    fun setPlayerSelWand(p: Player, itemStack: ItemStack) {
-        updatePlayerEntry(p, NsPlayerDataTable.selWandItem, itemStack.nsSerialize())
-    }
-
-    /**
-     * Costly function, use sparingly
-     */
-    private fun <T> updatePlayerEntry(p: Player, col: Column<T>, value: T) {
+    fun setPlayerSimSel(uuid: UUID, sel: SimSelection?) {
         transaction(db) {
-            val pRow = getPlayerRowOrCreate(p.uniqueId)
-            val uuid = pRow[NsPlayerDataTable.playerUuid]
-
-            NsPlayerDataTable.update({ NsPlayerDataTable.playerUuid eq uuid }) {
-                it[col] = value
+            if (sel == null) {
+                PlayerSelections.deleteWhere { PlayerSelections.playerUuid eq uuid }
+            } else {
+                PlayerSelections.upsert {
+                    it[PlayerSelections.playerUuid] = uuid
+                    it[PlayerSelections.playerSimSel] = sel.nsSerialize()
+                }
             }
         }
     }
 
-    /**
-     * Retrieves the data associated to this player from the DB.
-     * As it queries the DB, use very sparingly (like not in loops lmao)
-     */
-    fun retrievePlayerData(uuid: UUID): NsDbPlayerData {
-        return transaction(db) {
-            val row = getPlayerRowOrCreate(uuid)
-            val outUuid = row[NsPlayerDataTable.playerUuid] // keeping this in out of consistency
-            val selWandItem = nsDeserializeItemStack(row[NsPlayerDataTable.selWandItem])
-            val playerSimSel = SimSelection.nsDeserialize(row[NsPlayerDataTable.playerSimSel])
-
-            NsDbPlayerData(
-                outUuid,
-                selWandItem,
-                playerSimSel,
-            )
-        }
+    fun getPlayerSimSel(uuid: UUID): SimSelection? = transaction(db) {
+        PlayerSelections
+            .select(PlayerSelections.playerSimSel)
+            .where { PlayerSelections.playerUuid eq uuid }
+            .singleOrNull()?.let { SimSelection.nsDeserialize(it[PlayerSelections.playerSimSel]) }
     }
+}
 
-    private fun getPlayerRowOrCreate(uuid: UUID): ResultRow {
-        var resultRow: ResultRow? = null
+private const val FIELD_SEP = "|"
+private fun IVec3.nsSerialise() = "$x $y $z"
+private fun IVec3.Companion.nsDeserialize(s: String) = fromArray(s.split(" ").map { it.toInt() }.toIntArray())
 
-        transaction(db) {
-            val result = NsPlayerDataTable
-                .select { NsPlayerDataTable.playerUuid eq uuid }
-                .singleOrNull()
+private fun SimSelection.nsSerialize() =
+    "${pos1.nsSerialise()} $FIELD_SEP ${pos2.nsSerialise()} $FIELD_SEP ${world.uid}"
 
-            if (result == null) {
-                createPlayerEntry(uuid)
-            }
-
-            resultRow = NsPlayerDataTable
-                .select { NsPlayerDataTable.playerUuid eq uuid }
-                .single()
-        }
-
-        return resultRow!!
-    }
-
-    private fun createPlayerEntry(uuid: UUID) {
-        transaction(db) {
-            NsPlayerDataTable.insert {
-                it[playerUuid] = uuid
-            }
-        }
-    }
+private fun SimSelection.Companion.nsDeserialize(s: String): SimSelection? {
+    val (pos1Str, pos2Str, worldUuidStr) = s.split(FIELD_SEP).map { it.trim() }
+    return SimSelection(
+        // TODO: return error instead of null here?
+        // not a big deal, but might be a bit nicer for the user
+        world = Bukkit.getWorld(UUID.fromString(worldUuidStr)) ?: return null,
+        pos1 = IVec3.nsDeserialize(pos1Str),
+        pos2 = IVec3.nsDeserialize(pos2Str),
+    )
 }

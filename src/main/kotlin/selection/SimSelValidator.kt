@@ -15,35 +15,8 @@ import kotlin.time.TimeSource
  * Singleton checking static selections
  */
 class SimSelValidator(val noreStone: NOREStone) {
-    fun validateForCompilation(player: Player): Result<Unit, String> {
-        val sesh = noreStone.getSession(player)
-        return if (sesh.sel.isSpatiallyComplete()) {
-            validateSpatially(player, sesh.sel)
-        } else {
-            Result.err("Selection isn't complete.")
-        }
-    }
+    fun validateForCompilation(player: Player, sel: SimSelection): Result<Unit, String> = validateSpatially(player, sel)
 
-    fun validateForSimSpatialChange(player: Player, newSel: SimSelection): Result<Unit, String> {
-        //println((newSel.pos1 != null).toInt() + (newSel.pos2 != null).toInt())
-        if (newSel.isComplete()) return validateSpatially(player, newSel)
-        if (newSel.isSpatiallyPartial()) {
-            require(newSel.world != null) { "Non spatially null selection needs a world." }
-            if (newSel.pos1 != null) {
-                val pos1ValidationRes = validateSelCorner(player, newSel.world, newSel.pos1, 0)
-                if (pos1ValidationRes is Err) return pos1ValidationRes
-            }
-            if (newSel.pos2 != null) {
-                val pos2ValidationRes = validateSelCorner(player, newSel.world, newSel.pos2, 1)
-                if (pos2ValidationRes is Err) return pos2ValidationRes
-            }
-        }
-        return Result.ok()
-    }
-
-    /**
-     * Assumes the selection is spatially complete
-     */
     fun validateSpatially(
         player: Player,
         sel: SimSelection,
@@ -53,12 +26,6 @@ class SimSelValidator(val noreStone: NOREStone) {
         validateOverlap: Boolean = true,
         validatePlotPositioning: Boolean = true,
     ): Result<Unit, String> {
-        require(sel.isComplete()) { "Selection needs to be complete" }
-
-        sel.world!!
-        sel.pos1!!
-        sel.pos2!!
-        // Validate corners
         if (validateCorners) {
             val pos1ValidationRes = validateSelCorner(player, sel.world, sel.pos1, 0)
             if (pos1ValidationRes is Err) return pos1ValidationRes
@@ -109,7 +76,7 @@ class SimSelValidator(val noreStone: NOREStone) {
     }
 
     fun validateSelAxes(sel: SimSelection, dimsLim: IVec3): Result<Unit, String> {
-        val bounds = sel.bounds() ?: return Result.ok()
+        val bounds = sel.bounds
         val selDims = (bounds.b - bounds.a).abs()
         // If the diff between any of the coords is 0 or greater it means selDims <= dimsDiff everywhere
         val dimsDiff = dimsLim - selDims
@@ -127,7 +94,7 @@ class SimSelValidator(val noreStone: NOREStone) {
     }
 
     fun validateSelVolume(sel: SimSelection, maxVol: Long): Result<Unit, String> {
-        val bounds = sel.bounds() ?: return Result.ok()
+        val bounds = sel.bounds
         val selDims = (bounds.b - bounds.a).abs()
         val selVolume = selDims.eProdLong()
         if (selVolume <= maxVol) return Result.ok()
@@ -145,10 +112,10 @@ class SimSelValidator(val noreStone: NOREStone) {
         if (!cornerWithinWorldHeight) {
             return Result.err("Selection corner ${cornerIdx + 1} should be within world height.")
         }
-        // Check if the plot the corner is in, is in a trusted or owned plot
+        // Check if the plot the corner is in is a trusted or owned plot
         val plot = noreStone.getPlotAt(cornerWorld, corner)
             ?: return Result.err("Selection corner should be inside a plot.")
-        val canSetCornerHere = (player.uniqueId in plot.owners) || (player.uniqueId in plot.trusted)
+        val canSetCornerHere = player.uniqueId in plot.owners || player.uniqueId in plot.trusted
         if (!canSetCornerHere) {
             return Result.err(
                 "Selection corner ${cornerIdx + 1} should be inside a plot you either own or are trusted on."
@@ -159,17 +126,16 @@ class SimSelValidator(val noreStone: NOREStone) {
     }
 
     fun validatePlayerSelOverlap(player: Player, sel: SimSelection): Result<Unit, String> {
-        require(sel.isComplete()) { "Cannot validate selection overlapping of an incomplete sim selection." }
-        // Check over every active simulations if our selection is overlapping any other sims
+        // Check over every active simulation if our selection is overlapping any other sims
+        // TODO: check sims, not sessions (see: sim police checkup)
         for (playerUuid in noreStone.sessions.keys) {
             if (playerUuid == player.uniqueId) continue
             val playerCheckedAgainst = Bukkit.getPlayer(playerUuid) ?: continue
             //val pcaSesh = noreStone.getSession(playerCheckedAgainst)
             val pcaSim = noreStone.simManager.getPlayerSim(playerCheckedAgainst.uniqueId) ?: continue
+            if (pcaSim.sel.world.uid != sel.world.uid) continue
 
-            if (pcaSim.sel.world!!.uid != sel.world!!.uid) continue
-
-            if (sel.bounds()!!.intersects(pcaSim.sel.bounds()!!)) {
+            if (sel.bounds.intersects(pcaSim.sel.bounds)) {
                 return Result.err("Simulation selection intersects with a currently on-going simulation.")
             }
         }
@@ -181,7 +147,6 @@ class SimSelValidator(val noreStone: NOREStone) {
      * Check if the selection is entirely in plots that the owner owns / is trusted on
      */
     fun validatePlayerSelPlotPositioning(player: Player, sel: SimSelection): Result<Unit, String> {
-        require(sel.isComplete()) { "Cannot validate plot positioning of an incomplete sim selection." }
         // If player can select everywhere
         if (player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)) {
             return Result.ok()
@@ -206,15 +171,15 @@ class SimSelValidator(val noreStone: NOREStone) {
         //       as anytime someone gets trusted (or gets removed trusted), anytime a plot
         //       is merged or deleted etc.. we have to conduct a health check of the sim selection
         //       on every sim selection, and every selection of simulations currently on-going.
-        val selBounds = sel.bounds()!!
+        val selBounds = sel.bounds
         val blockFlagArr = BitArray(selBounds.volumeLong())
         blockFlagArr.zeroOut()
         val plotsWhereSimAllowed = PlotQuery
             .newQuery()
-            .inWorld(sel.world!!.name)
+            .inWorld(sel.world.name)
             .withMember(player.uniqueId)
             .asList()
-            .filter { (player.uniqueId in it.trusted) || (player.uniqueId in it.owners) }
+            .filter { player.uniqueId in it.trusted || player.uniqueId in it.owners }
 
         for (plot in plotsWhereSimAllowed) {
             val cuboidRegions = plot.regions
@@ -243,16 +208,16 @@ class SimSelValidator(val noreStone: NOREStone) {
         //       as I get them multiple times in the query, leading to us checking the same
         //       boundaries multiple times.
         fun IntBoundary.flatten() = IntBoundary.new(a.withY(0), b.withY(1))
-        val selBounds = sel.bounds()!!
+        val selBounds = sel.bounds
         val selBoundsFlat = selBounds.flatten()
         val blockFlagArr = BitArray(selBoundsFlat.volumeLong())
         blockFlagArr.zeroOut()
         val plotsWhereSimAllowed = PlotQuery
             .newQuery()
-            .inWorld(sel.world!!.name)
+            .inWorld(sel.world.name)
             .withMember(player.uniqueId)
             .asList()
-            .filter { (player.uniqueId in it.trusted) || (player.uniqueId in it.owners) }
+            .filter { player.uniqueId in it.trusted || player.uniqueId in it.owners }
 
         for (plot in plotsWhereSimAllowed) {
             val cuboidRegions = plot.regions

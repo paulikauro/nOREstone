@@ -50,8 +50,6 @@ class NsSim(
     var updateCycleCountLifetime = 0L
     // ==
     init {
-        require(sel.isComplete()) { "Nodestone simulation selection has to be complete." }
-
         state = SimState.Running(this)
 
         if (nodeStoneSim is BlockPositionedRsInputs) {

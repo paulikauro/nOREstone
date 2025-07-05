@@ -7,18 +7,7 @@ import java.util.logging.Level
 
 class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
     val db = noreStone.db
-    var sel: SimSelection
-    var selWand: ItemStack
-
-    init {
-        val playerData = db.retrievePlayerData(player.uniqueId)
-
-        noreStone.logger.log(Level.INFO, "Retrieved selection: ${playerData.simSel.nsSerialize()}")
-        noreStone.logger.log(Level.INFO, "Retrieved selwand: ${playerData.selWantItem.type.name}")
-
-        sel = playerData.simSel
-        selWand = playerData.selWantItem
-    }
+    var sel: SimSelection? = db.getPlayerSimSel(player.uniqueId)
 
     fun end() {
         // End simulation
@@ -26,9 +15,6 @@ class NsPlayerSession(val player: Player, val noreStone: NOREStone) {
             noreStone.simManager.requestSimRemove(player.uniqueId, it)
         }
         // Write player data that changed to the db
-        noreStone.logger.log(Level.INFO, "Saving selelection: ${sel.nsSerialize()}")
-        db.setPlayerSimSel(player, sel)
-        noreStone.logger.log(Level.INFO, "Saving selwand: ${selWand.type.name}")
-        db.setPlayerSelWand(player, selWand)
+        db.setPlayerSimSel(player.uniqueId, sel)
     }
 }

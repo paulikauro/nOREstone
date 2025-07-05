@@ -56,10 +56,10 @@ dependencies {
     compileOnly("com.intellectualsites.plotsquared:plotsquared-core:7.3.8")
     compileOnly("com.intellectualsites.plotsquared:plotsquared-bukkit:7.3.8") { isTransitive = false }
 
-    // Sqlite and more but i don't know what else it adds lmaoooo
-    implementation(group = "org.jetbrains.exposed", name = "exposed-core", version = "0.30.1")
-    implementation(group = "org.jetbrains.exposed", name = "exposed-jdbc", version = "0.30.1")
-    implementation(group = "org.jetbrains.exposed", name = "exposed-java-time", version = "0.30.1")
+    val exposedVersion = "1.0.0-beta-3"
+    implementation(group = "org.jetbrains.exposed", name = "exposed-core", version = exposedVersion)
+    implementation(group = "org.jetbrains.exposed", name = "exposed-jdbc", version = exposedVersion)
+    implementation(group = "org.jetbrains.exposed", name = "exposed-java-time", version = exposedVersion)
 
     // Luck perms
     compileOnly("net.luckperms:api:5.4")

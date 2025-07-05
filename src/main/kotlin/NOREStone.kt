@@ -2,6 +2,8 @@ package com.sloimay.norestone
 
 import com.plotsquared.core.PlotAPI
 import com.plotsquared.core.plot.Plot
+import com.sk89q.worldedit.WorldEdit
+import com.sk89q.worldedit.bukkit.WorldEditPlugin
 import com.sloimay.norestone.commands.SimCmd
 import com.sloimay.norestone.listeners.NorestoneListener
 import com.sloimay.norestone.listeners.PlotSquaredListener
@@ -17,11 +19,6 @@ import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.*
-
-enum class SimAnomalies {
-    PLAYER_SEL_BOUNDS,
-    SIM_SEL_BOUNDS,
-}
 
 class NOREStone : JavaPlugin() {
     val sessions = HashMap<UUID, NsPlayerSession>()
@@ -43,6 +40,8 @@ class NOREStone : JavaPlugin() {
     // # Hooked plugins
     lateinit var luckPerms: LuckPerms
         private set
+    lateinit var worldEdit: WorldEdit
+        private set
 
     override fun onEnable() {
         // # Config
@@ -54,6 +53,7 @@ class NOREStone : JavaPlugin() {
         if (!isEnabled) return
         // # Hooking
         if (!hookIntoLuckPerms()) return
+        if (!hookIntoWorldEdit()) return
         plotApi = PlotAPI()
         // # Db file
         dataFolder.mkdirs()
@@ -82,10 +82,19 @@ class NOREStone : JavaPlugin() {
             server.pluginManager.disablePlugin(this)
             return false
         }
-
         luckPerms = provider.provider
-        logger.info("Successfully hooked into LuckPerms.")
+        return true
+    }
 
+    private fun hookIntoWorldEdit(): Boolean {
+        val plugin = Bukkit.getPluginManager().getPlugin("WorldEdit") as? WorldEditPlugin
+        if (plugin == null) {
+            // TODO: dedup, also careful with disabling as it runs onDisable. figure out a better way
+            logger.severe("WorldEdit not found, disabling plugin.")
+            server.pluginManager.disablePlugin(this)
+            return false
+        }
+        worldEdit = plugin.worldEdit
         return true
     }
 
@@ -169,7 +178,6 @@ class NOREStone : JavaPlugin() {
         return sessions[playerUuid]!!
     }
 
-    fun getSessionUuids() = sessions.keys
     fun doesPlayerSimExists(player: Player): Boolean {
         return simManager.playerUuidSimExists(player.uniqueId)
     }
@@ -196,34 +204,23 @@ class NOREStone : JavaPlugin() {
     }
 
     /**
-     * Checks if sims and sel bounds are living in legality
+     * Checks if sims are living in legality
      */
-    fun simulationsPoliceCheckup(): List<Pair<UUID, List<SimAnomalies>>> {
-        val anomalies = mutableListOf<Pair<UUID, List<SimAnomalies>>>()
-        val sessionUuids = getSessionUuids()
-        for (seshUuid in sessionUuids) {
+    fun simulationsPoliceCheckup() {
+        // TODO: really you just want to check the running sims instead
+        // see: validatePlayerSelOverlap
+        for (seshUuid in sessions.keys) {
             val player = Bukkit.getPlayer(seshUuid)!!
-            val sesh = getSession(seshUuid)
-            val playerHasSelectBypass = player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)
-            // Player selection check
-            var playerSelLegal = true
-            if (!playerHasSelectBypass && sesh.sel.isComplete()) {
-                playerSelLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(sesh.sel, player)
-            }
-            // Simulation selection check
-            var simSelIsLegal = true
-            val playerSim = simManager.getPlayerSim(player.uniqueId)
-            if (!playerHasSelectBypass && playerSim != null) {
-                simSelIsLegal = simSelValidator.isSimSelInLegalSpot_assume2dPlots(playerSim.sel, player)
-            }
-            // Get all anomalies
-            val thisSimAnomalies = mutableListOf<SimAnomalies>()
-            if (!playerSelLegal) thisSimAnomalies.add(SimAnomalies.PLAYER_SEL_BOUNDS)
-            if (!simSelIsLegal) thisSimAnomalies.add(SimAnomalies.SIM_SEL_BOUNDS)
-
-            anomalies.add(seshUuid to thisSimAnomalies)
+            if (player.hasPermission(NsPerms.Simulation.Selection.Select.bypass)) continue
+            val playerSim = simManager.getPlayerSim(player.uniqueId) ?: continue
+            if (simSelValidator.isSimSelInLegalSpot_assume2dPlots(playerSim.sel, player)) continue
+            simManager.requestSimRemove(player.uniqueId, playerSim)
+            // not ideal for the message to be here, but it is only called from the plot listener for now
+            player.nsWarn(
+                "Following a modification of your trusted status, or plots changing" +
+                        " geometry, which lead to your currently on-going simulation being in an invalid" +
+                        " state, your simulation was cleared."
+            )
         }
-
-        return anomalies
     }
 }

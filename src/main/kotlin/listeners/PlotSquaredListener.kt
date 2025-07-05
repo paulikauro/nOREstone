@@ -3,10 +3,6 @@ package com.sloimay.norestone.listeners
 import com.google.common.eventbus.Subscribe
 import com.plotsquared.core.events.*
 import com.sloimay.norestone.NOREStone
-import com.sloimay.norestone.SimAnomalies
-import com.sloimay.norestone.nsWarn
-import com.sloimay.norestone.selection.SimSelection
-import org.bukkit.Bukkit
 
 class PlotSquaredListener(val noreStone: NOREStone) {
     @Subscribe
@@ -16,6 +12,7 @@ class PlotSquaredListener(val noreStone: NOREStone) {
         // how to handle them properly (not that I do for these ones either lol)
         // For these 4 I'm assuming the event bus of PlotSquared is synced with Bukkit's,
         // so no race condition will happen from here with the rest of the codebase.
+        // TODO: check thread safety ^
         val isRelevantEvent = (
                 e is PlayerClaimPlotEvent || // Maybe you never need this one but I'm not sure
                         e is PlayerPlotTrustedEvent ||
@@ -25,34 +22,6 @@ class PlotSquaredListener(val noreStone: NOREStone) {
                 )
 
         if (!isRelevantEvent) return
-        val anomalies = noreStone.simulationsPoliceCheckup()
-        for ((seshUuid, seshAnomalies) in anomalies) {
-            val player = Bukkit.getPlayer(seshUuid)!!
-            val sesh = noreStone.getSession(seshUuid)
-
-            for (anomaly in seshAnomalies) {
-                when (anomaly) {
-                    SimAnomalies.PLAYER_SEL_BOUNDS -> {
-                        sesh.sel = SimSelection.empty()
-                        player.nsWarn(
-                            "Following a modification of your trusted status, or plots changing" +
-                                    " geometry, which lead to your selection being in an invalid state, your selection" +
-                                    " was reset."
-                        )
-                    }
-
-                    SimAnomalies.SIM_SEL_BOUNDS -> {
-                        noreStone.simManager.getPlayerSim(player.uniqueId)?.let {
-                            noreStone.simManager.requestSimRemove(player.uniqueId, it)
-                            player.nsWarn(
-                                "Following a modification of your trusted status, or plots changing" +
-                                        " geometry, which lead to your currently on-going simulation being in an invalid" +
-                                        " state, your simulation was cleared."
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        noreStone.simulationsPoliceCheckup()
     }
 }

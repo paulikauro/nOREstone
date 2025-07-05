@@ -1,5 +1,8 @@
 package com.sloimay.norestone
 
+import com.sk89q.worldedit.IncompleteRegionException
+import com.sk89q.worldedit.bukkit.BukkitAdapter
+import com.sk89q.worldedit.regions.CuboidRegion
 import com.sloimay.mcvolume.McVolume
 import com.sloimay.nodestonecore.simulation.initinterfaces.AreaRepresentationInitialized
 import com.sloimay.nodestonecore.simulation.initinterfaces.CompileFlagInitialized
@@ -8,78 +11,34 @@ import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.norestone.selection.SimSelection
 import com.sloimay.norestone.simulation.NsSim
 import com.sloimay.smath.geometry.boundary.IntBoundary
-import com.sloimay.smath.vectors.IVec3
 import de.tr7zw.nbtapi.NBT
 import de.tr7zw.nbtapi.NBTCompound
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Material
 import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 class NsPlayerInteractions(val noreStone: NOREStone) {
-    /**
-     * Setting selection corners should only happen in this method!!
-     */
-    fun setSimSelCorner(player: Player, newCorner: IVec3, cornerIdx: Int): Result<Boolean, String> {
-        playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return Result.err(it) }
-        val sesh = noreStone.getSession(player)
-        // Check if the new corner is in the same world as the previous one (if one was set)
-        val selW = sesh.sel.world
-        if (selW != null) {
-            if (selW.uid != player.world.uid) {
-                return Result.err(
-                    "Trying to select in 2 different worlds. Keep it in the same world," +
-                            " or do \"/sim desel\" and start selecting again."
-                )
-            }
-        }
-        // If we're setting the same corner, don't do anything
-        val oldCorner = sesh.sel[cornerIdx]
-        if (oldCorner == newCorner) {
-            return Result.ok(false)
-        }
-        // # Attempt a new selection
-        val newSelAttempt = when (cornerIdx) {
-            0 -> sesh.sel.withPos1(newCorner)
-            1 -> sesh.sel.withPos2(newCorner)
-            else -> error("Index out of bounds.")
-        }.withWorld(player.world)
-        // Spatial change validation
-        val spatialChangeValidationRes =
-            noreStone.simSelValidator.validateForSimSpatialChange(player, newSelAttempt)
-        if (spatialChangeValidationRes is Err) return spatialChangeValidationRes
-        // New selection attempt success
-        sesh.sel = newSelAttempt
-
-        return Result.ok(true)
+    fun select(player: Player): Result<String, String> {
+        val wePlayer = BukkitAdapter.adapt(player)
+        val localSession = noreStone.worldEdit.sessionManager.get(wePlayer)
+        // TODO: possibly force selection to be from player's current world? (maybe not)
+        // (can be done with getSelection(world))
+        val weSel = try {
+            localSession.selection
+        } catch (_: IncompleteRegionException) {
+            return Result.err("Make a WorldEdit selection first")
+        } as? CuboidRegion ?: return Result.err("Your WorldEdit selection must be a cuboid selection")
+        // world is always non-null when you get it from LocalSession#getSelection
+        val sel = SimSelection(BukkitAdapter.adapt(weSel.world!!), weSel.pos1.toIVec3(), weSel.pos2.toIVec3())
+        // TODO: save the selection here (and in clearSelection)
+        noreStone.getSession(player).sel = sel
+        return Result.ok("Succesfully set your simulation selection from your WorldEdit selection.")
     }
 
-    fun desel(player: Player): Result<Unit, String> {
-        playerFeedbackRequirePerm(player, NsPerms.Simulation.Selection.select) { return Result.err(it) }
-        val sesh = noreStone.getSession(player)
-
-        sesh.sel = SimSelection.empty()
-
-        return Result.ok()
-    }
-
-    fun bindSimSelWand(p: Player, item: ItemStack): Result<String, String> {
-        playerFeedbackRequirePerm(p, NsPerms.Simulation.Selection.changeSelWand) { return Result.err(it) }
-
-        if (item.type.isAir) {
-            return Result.err("Cannot bind simulation selection wand to empty.")
-        }
-
-        noreStone.getSession(p).selWand = item
-
-        return Result.ok(
-            "Successfully bind simulation selection wand to " +
-                    "'${MiniMessage.miniMessage().serialize(Component.translatable(item.type.translationKey()))}'."
-        )
+    fun clearSelection(player: Player) {
+        noreStone.getSession(player).sel = null
     }
 
     /**
@@ -90,27 +49,25 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         playerFeedbackRequirePerm(player, NsPerms.Simulation.compile) { return Result.err(it) }
         if (noreStone.doesPlayerSimExists(player)) {
             return Result.err(
-                "Your simulation is still active, please clear it before trying to" +
-                        " compile a new one."
+                "Your simulation is still active, please clear it before trying to compile a new one."
             )
         }
-        val selValidationRes = noreStone.simSelValidator.validateForCompilation(player)
+        val sesh = noreStone.getSession(player)
+        // TODO: this is a bad error message
+        val sel = sesh.sel ?: return Result.err("You must have a selection to compile. Select with /sim select")
+        val selValidationRes = noreStone.simSelValidator.validateForCompilation(player, sel)
         if (selValidationRes is Err) return selValidationRes
 
-        if (!RS_BACKEND_INFO.any { it.backendId == backendId }) {
-            return Result.err("Unknown backend of id '${backendId}'.")
-        }
-        val compileStartTime = TimeSource.Monotonic.markNow()
         val backendInfo = RS_BACKEND_INFO.firstOrNull { it.backendId == backendId }
             ?: return Result.err("Unknown backend of id '${backendId}'.")
+
+        val compileStartTime = TimeSource.Monotonic.markNow()
         val simInit = backendInfo.initialiserProvider()
-        val sesh = noreStone.getSession(player)
-        val sel = sesh.sel
-        val simWorldBounds = sel.bounds()!!
+        val simWorldBounds = sel.bounds
         // ## ==== Initialize depending on how this simulation wants to be initialized.
         // Init with an area representation
         if (simInit is AreaRepresentationInitialized) {
-            val simWorld = sel.world!!
+            val simWorld = sel.world
             // The origin of the simulation inside the standalone mcvolume is at 0,0
             val volBounds = simWorldBounds.shift(-simWorldBounds.a)
             // # Instantiate vol
@@ -172,7 +129,7 @@ class NsPlayerInteractions(val noreStone: NOREStone) {
         } catch (e: Exception) {
             return Result.err(e.toString()) // Better than nothing logged to the player
         }
-        val nsSim = NsSim(noreStone, sesh.sel, simBackend, simWorldBounds.a, noreStone.simManager, 20.0)
+        val nsSim = NsSim(noreStone, sel, simBackend, simWorldBounds.a, noreStone.simManager, 20.0)
         // Request addition of this sim
         noreStone.simManager.requestSimAdd(player.uniqueId, nsSim)
         // Just means the synced code was successful

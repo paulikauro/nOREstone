@@ -5,16 +5,12 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldedit.util.SideEffectSet
 import com.sloimay.nodestonecore.simulation.abilities.RsInputSchedulingAbility
 import com.sloimay.norestone.*
-import com.sloimay.norestone.Result.Err
-import com.sloimay.norestone.Result.Ok
 import com.sloimay.norestone.permission.NsPerms
 import com.sloimay.smath.geometry.boundary.IntBoundary
-import com.sloimay.smath.vectors.IVec3
 import de.tr7zw.nbtapi.NBT
 import de.tr7zw.nbtapi.NBTCompound
 import net.querz.nbt.io.SNBTUtil
 import org.bukkit.Bukkit
-import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -46,9 +42,9 @@ class NorestoneListener(val noreStone: NOREStone) : Listener {
         // Could use some kind of spatial tree, as it may get pretty laggy if there are a lot of sims
         // going at the same time
         noreStone.simManager.applyOnSimsReadOnly { sim ->
-            if (sim.sel.world!!.uid != e.block.world.uid) return@applyOnSimsReadOnly
+            if (sim.sel.world.uid != e.block.world.uid) return@applyOnSimsReadOnly
             // Update happened in the same world as this sim
-            val simWorldBounds = sim.sel.bounds()!!
+            val simWorldBounds = sim.sel.bounds
             if (!simWorldBounds.posInside(blockPos)) return@applyOnSimsReadOnly
             // Update happened in this sim bounds
             // Handle user inputs

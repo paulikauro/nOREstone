@@ -34,8 +34,6 @@ val RS_BACKEND_INFO = listOf(
     RS_BACKENDS.shrimple,
 )
 
-fun defaultSimSelWand() = ItemStack(Material.NETHERITE_SHOVEL)
-
 object DEBUG {
     val PLOT = false
     val NUMBER_PERMS = false

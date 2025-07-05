@@ -78,7 +78,7 @@ class SimCmd(val noreStone: NOREStone) {
                         val ticksStepped = args["ticks"] as Long
                         when (val res = noreStone.playerInteract.tickStep(p, ticksStepped)) {
                             is Err -> p.nsErr(res.err)
-                            is Ok -> p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped == 1L) "" else "s"}..")
+                            is Ok -> p.nsInfo("Stepping $ticksStepped tick${if (ticksStepped == 1L) "" else "s"}.")
                         }
                     }
                 }
@@ -111,6 +111,24 @@ class SimCmd(val noreStone: NOREStone) {
                             is Err -> p.nsErr(res.err)
                             is Ok -> p.nsInfo("Simulation target TPS set to ${"%.2f".format(Locale.ENGLISH, newTps)}.")
                         }
+                    }
+                }
+            }
+
+            literalArgument("select") {
+                withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                playerExecutor { p, args ->
+                    when (val res = noreStone.playerInteract.select(p)) {
+                        is Err -> p.nsErr(res.err)
+                        is Ok -> p.nsInfo(res.value)
+                    }
+                }
+                literalArgument("clear") {
+                    // TODO: is withPermission needed here too?
+                    withPermission(noreStone.pp.permStr(NsPerms.Cmd.Sim.select))
+                    playerExecutor { p, args ->
+                        noreStone.playerInteract.clearSelection(p)
+                        p.nsInfo("Successfully cleared your selection")
                     }
                 }
             }
