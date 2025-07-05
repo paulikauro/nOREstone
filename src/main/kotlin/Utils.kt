@@ -222,7 +222,7 @@ fun nbtApiToQuerzNbt(nbtApiNbt: NBTCompound): CompoundTag {
                         NBTType.NBTTagByte -> {}
                         NBTType.NBTTagShort -> {}
                         NBTType.NBTTagInt -> {
-                            ListTag(IntTag::class.java)
+                            listTag = ListTag(IntTag::class.java)
                                 .also { list -> nbtApiCompound.getIntegerList(key).forEach { t -> list.addInt(t) } }
                         }
 
